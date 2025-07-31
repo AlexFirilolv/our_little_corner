@@ -1,0 +1,119 @@
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&family=Quicksand:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 245 230 232; /* #F5E6E8 - Creamy White */
+    --foreground: 92 84 112; /* #5C5470 - Dark Muted Purple */
+    --card: 245 230 232;
+    --card-foreground: 92 84 112;
+    --popover: 245 230 232;
+    --popover-foreground: 92 84 112;
+    --primary: 255 192 203; /* #FFC0CB - Pastel Pink */
+    --primary-foreground: 92 84 112;
+    --secondary: 245 230 232; /* #F5E6E8 - Creamy White */
+    --secondary-foreground: 92 84 112;
+    --muted: 245 230 232;
+    --muted-foreground: 92 84 112;
+    --accent: 217 170 183; /* #D9AAB7 - Dusty Rose */
+    --accent-foreground: 92 84 112;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 170 183;
+    --input: 245 230 232;
+    --ring: 255 192 203;
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-body;
+  }
+  
+  h1, h2, h3 {
+    @apply font-romantic;
+  }
+}
+
+@layer components {
+  .masonry-grid {
+    column-count: 1;
+    column-gap: 1rem;
+    
+    @media (min-width: 640px) {
+      column-count: 2;
+    }
+    
+    @media (min-width: 1024px) {
+      column-count: 3;
+    }
+    
+    @media (min-width: 1280px) {
+      column-count: 4;
+    }
+  }
+  
+  .masonry-item {
+    @apply mb-4 break-inside-avoid;
+  }
+  
+  .romantic-card {
+    @apply bg-white/80 backdrop-blur-sm border border-accent/30 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02];
+  }
+  
+  .romantic-button {
+    @apply bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 rounded-full font-body font-medium transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg;
+  }
+  
+  .romantic-input {
+    @apply bg-white/50 border-accent/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg px-4 py-3 font-body placeholder:text-muted-foreground/60;
+  }
+  
+  .prose {
+    @apply text-sm leading-relaxed;
+  }
+  
+  .prose p {
+    @apply mb-3;
+  }
+  
+  .prose strong {
+    @apply font-semibold text-foreground;
+  }
+  
+  .prose em {
+    @apply italic;
+  }
+  
+  .prose ul {
+    @apply list-disc list-inside mb-3;
+  }
+  
+  .prose ol {
+    @apply list-decimal list-inside mb-3;
+  }
+  
+  .prose li {
+    @apply mb-1;
+  }
+  
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
