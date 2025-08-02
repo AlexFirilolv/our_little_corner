@@ -21,7 +21,8 @@ import {
   Unlock,
   Clock,
   Settings,
-  CheckSquare
+  CheckSquare,
+  GripVertical
 } from 'lucide-react'
 import RichTextEditor from './RichTextEditor'
 
@@ -55,6 +56,10 @@ export default function EnhancedUploadForm() {
   const [showTitle, setShowTitle] = useState(false)
   const [showDescription, setShowDescription] = useState(false)
   const [showMediaCount, setShowMediaCount] = useState(false)
+  const [showCreationDate, setShowCreationDate] = useState(false)
+  // Task-based unlocking
+  const [unlockType, setUnlockType] = useState<'scheduled' | 'task_based'>('scheduled')
+  const [unlockTask, setUnlockTask] = useState('')
   
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
@@ -78,6 +83,15 @@ export default function EnhancedUploadForm() {
         URL.revokeObjectURL(file.preview)
       }
       return prev.filter(f => f.id !== fileId)
+    })
+  }
+
+  const moveFile = (fromIndex: number, toIndex: number) => {
+    setSelectedFiles(prev => {
+      const newFiles = [...prev]
+      const [movedFile] = newFiles.splice(fromIndex, 1)
+      newFiles.splice(toIndex, 0, movedFile)
+      return newFiles
     })
   }
 
@@ -109,7 +123,11 @@ export default function EnhancedUploadForm() {
         // Public visibility controls
         show_title: showTitle,
         show_description: showDescription,
-        show_media_count: showMediaCount
+        show_media_count: showMediaCount,
+        show_creation_date: showCreationDate,
+        // Task-based unlocking
+        unlock_type: unlockType,
+        unlock_task: unlockTask || undefined
       }
 
       const groupResponse = await fetch('/api/memory-groups', {
@@ -124,9 +142,9 @@ export default function EnhancedUploadForm() {
 
       const memoryGroup = await groupResponse.json()
 
-      // Step 2: Upload files and create media items
-      let sortOrder = 0
-      const uploadPromises = selectedFiles.map(async (file) => {
+      // Step 2: Upload files and create media items (sequential to maintain order)
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i]
         try {
           // Update progress
           setUploadProgress(prev => ({ ...prev, [file.id]: 0 }))
@@ -174,7 +192,7 @@ export default function EnhancedUploadForm() {
             s3_url: fileUrl,
             file_type: file.file.type,
             file_size: file.file.size,
-            sort_order: sortOrder++
+            sort_order: i
           }
 
           const mediaResponse = await fetch('/api/media', {
@@ -204,9 +222,7 @@ export default function EnhancedUploadForm() {
             )
           )
         }
-      })
-
-      await Promise.all(uploadPromises)
+      }
 
       // Success - redirect or reset form
       alert('Memory created successfully!')
@@ -229,6 +245,10 @@ export default function EnhancedUploadForm() {
       setShowTitle(false)
       setShowDescription(false)
       setShowMediaCount(false)
+      setShowCreationDate(false)
+      // Reset task-based unlocking
+      setUnlockType('scheduled')
+      setUnlockTask('')
       
       // Refresh the page
       router.refresh()
@@ -429,6 +449,17 @@ export default function EnhancedUploadForm() {
                       />
                       <Label htmlFor="show-media-count" className="text-sm">Media count</Label>
                     </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="show-creation-date"
+                        checked={showCreationDate}
+                        onChange={(e) => setShowCreationDate(e.target.checked)}
+                        className="rounded"
+                      />
+                      <Label htmlFor="show-creation-date" className="text-sm">Creation date</Label>
+                    </div>
                     
                     <p className="text-xs text-muted-foreground">
                       By default, all information is hidden when the memory is locked. Check the boxes above to show specific details to users.
@@ -487,6 +518,51 @@ export default function EnhancedUploadForm() {
                       className="romantic-input"
                     />
                   </div>
+
+                  {/* Task Assignment - Only for public locked memories without schedule */}
+                  {lockVisibility === 'public' && !unlockDate && (
+                    <div className="space-y-4 border-t border-accent/20 pt-4">
+                      <div className="text-sm font-medium">Task-Based Unlocking</div>
+                      
+                      <div className="space-y-2">
+                        <Label>Unlock Method</Label>
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant={unlockType === 'scheduled' ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setUnlockType('scheduled')}
+                          >
+                            Time-Based
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={unlockType === 'task_based' ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setUnlockType('task_based')}
+                          >
+                            Task-Based
+                          </Button>
+                        </div>
+                      </div>
+
+                      {unlockType === 'task_based' && (
+                        <div className="space-y-2">
+                          <Label htmlFor="unlock-task">Task Assignment</Label>
+                          <Input
+                            id="unlock-task"
+                            placeholder="e.g., 'Complete your first week of exercise' or 'Send me a photo of your smile'"
+                            value={unlockTask}
+                            onChange={(e) => setUnlockTask(e.target.value)}
+                            className="romantic-input"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Describe the task that needs to be completed to unlock this memory
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -535,10 +611,36 @@ export default function EnhancedUploadForm() {
           {/* Selected Files */}
           {selectedFiles.length > 0 && (
             <div className="space-y-3">
-              <h4 className="font-medium">Selected Files ({selectedFiles.length})</h4>
+              <h4 className="font-medium">Selected Files ({selectedFiles.length}) - Drag to reorder</h4>
               <div className="space-y-2 max-h-60 overflow-y-auto">
-                {selectedFiles.map((file) => (
-                  <div key={file.id} className="flex items-center gap-3 p-3 bg-accent/10 rounded-lg">
+                {selectedFiles.map((file, index) => (
+                  <div 
+                    key={file.id} 
+                    className="flex items-center gap-3 p-3 bg-accent/10 rounded-lg cursor-move hover:bg-accent/15 transition-colors"
+                    draggable={!isUploading}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('text/plain', index.toString())
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault()
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      const fromIndex = parseInt(e.dataTransfer.getData('text/plain'))
+                      const toIndex = index
+                      if (fromIndex !== toIndex) {
+                        moveFile(fromIndex, toIndex)
+                      }
+                    }}
+                  >
+                    {/* Drag Handle and Order */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <GripVertical className="h-4 w-4 text-muted-foreground" />
+                      <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-medium flex items-center justify-center">
+                        {index + 1}
+                      </div>
+                    </div>
+
                     {/* Preview */}
                     <div className="w-12 h-12 rounded overflow-hidden bg-accent/20 flex-shrink-0">
                       {(file.uploadedUrl && file.file.type.startsWith('image/')) || file.preview ? (

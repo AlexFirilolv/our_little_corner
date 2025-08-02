@@ -34,6 +34,7 @@ export interface MemoryGroup {
   show_title?: boolean
   show_description?: boolean
   show_media_count?: boolean
+  show_creation_date?: boolean
 }
 
 export interface CreateMemoryGroup {
@@ -54,13 +55,14 @@ export interface CreateMemoryGroup {
   show_title?: boolean
   show_description?: boolean
   show_media_count?: boolean
+  show_creation_date?: boolean
 }
 
 export interface UpdateMemoryGroup {
   title?: string
   description?: string
   is_locked?: boolean
-  unlock_date?: Date
+  unlock_date?: Date | null
   cover_media_id?: string
   // Advanced locking features
   lock_visibility?: 'public' | 'private'
@@ -75,6 +77,7 @@ export interface UpdateMemoryGroup {
   show_title?: boolean
   show_description?: boolean
   show_media_count?: boolean
+  show_creation_date?: boolean
 }
 
 // Types for media items
@@ -179,9 +182,10 @@ export async function createMemoryGroup(groupData: CreateMemoryGroup): Promise<M
       INSERT INTO memory_groups (
         title, description, is_locked, unlock_date,
         lock_visibility, show_date_hint, show_image_preview, blur_percentage,
-        unlock_hint, unlock_task, unlock_type, task_completed
+        unlock_hint, unlock_task, unlock_type, task_completed,
+        show_title, show_description, show_media_count, show_creation_date
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *
     `, [
       groupData.title,
@@ -195,7 +199,11 @@ export async function createMemoryGroup(groupData: CreateMemoryGroup): Promise<M
       groupData.unlock_hint,
       groupData.unlock_task,
       groupData.unlock_type || 'scheduled',
-      groupData.task_completed || false
+      groupData.task_completed || false,
+      groupData.show_title || false,
+      groupData.show_description || false,
+      groupData.show_media_count || false,
+      groupData.show_creation_date || false
     ])
     
     return result.rows[0]
@@ -398,6 +406,31 @@ export async function updateMemoryGroup(id: string, updates: UpdateMemoryGroup):
     if (updates.task_completed !== undefined) {
       setParts.push(`task_completed = $${paramCount}`)
       values.push(updates.task_completed)
+      paramCount++
+    }
+
+    // Public visibility controls
+    if (updates.show_title !== undefined) {
+      setParts.push(`show_title = $${paramCount}`)
+      values.push(updates.show_title)
+      paramCount++
+    }
+
+    if (updates.show_description !== undefined) {
+      setParts.push(`show_description = $${paramCount}`)
+      values.push(updates.show_description)
+      paramCount++
+    }
+
+    if (updates.show_media_count !== undefined) {
+      setParts.push(`show_media_count = $${paramCount}`)
+      values.push(updates.show_media_count)
+      paramCount++
+    }
+
+    if (updates.show_creation_date !== undefined) {
+      setParts.push(`show_creation_date = $${paramCount}`)
+      values.push(updates.show_creation_date)
       paramCount++
     }
 

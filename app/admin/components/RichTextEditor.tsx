@@ -6,6 +6,8 @@ import TextAlign from '@tiptap/extension-text-align'
 import TextStyle from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
 import FontFamily from '@tiptap/extension-font-family'
+import { Extension } from '@tiptap/core'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { 
   Bold, 
@@ -20,7 +22,8 @@ import {
   AlignCenter,
   AlignRight,
   Palette,
-  Type
+  Type,
+  Languages
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -35,7 +38,42 @@ interface RichTextEditorProps {
   placeholder?: string
 }
 
+// Hebrew character detection
+const isHebrewText = (text: string): boolean => {
+  // Hebrew Unicode ranges: 0x0590-0x05FF (Hebrew), 0xFB1D-0xFB4F (Hebrew Presentation Forms)
+  const hebrewRegex = /[\u0590-\u05FF\uFB1D-\uFB4F]/
+  return hebrewRegex.test(text)
+}
+
+// RTL Extension for proper direction handling
+const RTLExtension = Extension.create({
+  name: 'rtl',
+  
+  addGlobalAttributes() {
+    return [
+      {
+        types: ['paragraph', 'heading'],
+        attributes: {
+          dir: {
+            default: 'ltr',
+            parseHTML: element => element.getAttribute('dir') || 'ltr',
+            renderHTML: attributes => {
+              if (!attributes.dir || attributes.dir === 'ltr') {
+                return {}
+              }
+              return { dir: attributes.dir }
+            },
+          },
+        },
+      },
+    ]
+  },
+})
+
 export default function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
+  const [isRTL, setIsRTL] = useState(false)
+  const [manualRTL, setManualRTL] = useState(false) // Track manual RTL override
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -50,18 +88,66 @@ export default function RichTextEditor({ value, onChange, placeholder }: RichTex
       Color,
       FontFamily.configure({
         types: ['textStyle'],
-      })
+      }),
+      RTLExtension
     ],
     content: value,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML())
     },
+    onCreate: ({ editor }) => {
+      // Check if initial content contains Hebrew
+      const textContent = editor.getText()
+      if (isHebrewText(textContent)) {
+        setIsRTL(true)
+        editor.chain().focus().updateAttributes('paragraph', { dir: 'rtl' }).run()
+      }
+    },
     editorProps: {
       attributes: {
         class: 'prose prose-sm max-w-none focus:outline-none min-h-[150px] p-4 font-body',
       },
+      handleTextInput: (view, from, to, text) => {
+        // Auto-detect Hebrew and suggest RTL only if not manually overridden
+        if (isHebrewText(text) && !manualRTL && !isRTL) {
+          setTimeout(() => {
+            setIsRTL(true)
+            // We'll rely on the useEffect to sync the RTL state
+          }, 0)
+        }
+        return false // Let the editor handle the input normally
+      },
     },
   })
+
+  // Sync RTL state with editor - only apply globally if manually set
+  useEffect(() => {
+    if (editor && manualRTL) {
+      const newDir = isRTL ? 'rtl' : 'ltr'
+      // Apply to all paragraphs when manually toggled
+      const { tr } = editor.state
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'paragraph') {
+          tr.setNodeMarkup(pos, undefined, { ...node.attrs, dir: newDir })
+        }
+      })
+      editor.view.dispatch(tr)
+      
+      if (isRTL) {
+        editor.commands.setFontFamily('Noto Sans Hebrew, sans-serif')
+      }
+    }
+  }, [editor, isRTL, manualRTL])
+
+  // Auto-detect Hebrew content only for new content, don't override manual settings
+  useEffect(() => {
+    if (editor && !manualRTL) {
+      const textContent = editor.getText()
+      if (isHebrewText(textContent) && !isRTL) {
+        setIsRTL(true)
+      }
+    }
+  }, [editor?.getHTML(), editor, isRTL, manualRTL])
 
   if (!editor) {
     return (
@@ -285,14 +371,17 @@ export default function RichTextEditor({ value, onChange, placeholder }: RichTex
           variant="ghost"
           size="sm"
           onClick={() => {
-            const currentDir = editor.getAttributes('paragraph').dir || 'ltr'
-            const newDir = currentDir === 'ltr' ? 'rtl' : 'ltr'
-            editor.chain().focus().updateAttributes('paragraph', { dir: newDir }).run()
+            // Mark as manually controlled
+            setManualRTL(true)
+            // Toggle RTL state
+            setIsRTL(!isRTL)
           }}
-          className="h-8 px-2"
-          title="Toggle Text Direction (RTL/LTR)"
+          className={`h-8 px-2 ${isRTL ? 'bg-primary/20 text-primary' : ''}`}
+          title="Toggle Text Direction (RTL/LTR) - Manual Override"
         >
-          RTL
+          <Languages className="h-4 w-4 mr-1" />
+          {isRTL ? 'RTL' : 'LTR'}
+          {manualRTL && <span className="ml-1 text-xs">•</span>}
         </Button>
       </div>
 
@@ -300,14 +389,55 @@ export default function RichTextEditor({ value, onChange, placeholder }: RichTex
       <div className="min-h-[150px] max-h-[300px] overflow-y-auto">
         <EditorContent 
           editor={editor} 
-          className="prose-editor"
+          className={`prose-editor ${isRTL ? 'rtl-editor' : 'ltr-editor'}`}
         />
         {!value && (
-          <div className="absolute inset-4 pointer-events-none text-muted-foreground/60 font-body">
+          <div className={`absolute inset-4 pointer-events-none text-muted-foreground/60 font-body ${isRTL ? 'text-right' : 'text-left'}`}>
             {placeholder || 'Start writing your beautiful memory...'}
           </div>
         )}
       </div>
+      
+      {/* RTL Styles */}
+      <style jsx>{`
+        :global(.rtl-editor p[dir="rtl"]) {
+          direction: rtl;
+          text-align: right;
+          unicode-bidi: bidi-override;
+        }
+        
+        :global(.rtl-editor h1[dir="rtl"], .rtl-editor h2[dir="rtl"], .rtl-editor h3[dir="rtl"]) {
+          direction: rtl;
+          text-align: right;
+          unicode-bidi: bidi-override;
+        }
+        
+        :global(.ltr-editor p[dir="ltr"]) {
+          direction: ltr;
+          text-align: left;
+          unicode-bidi: normal;
+        }
+        
+        :global(.ltr-editor p) {
+          direction: ltr;
+          text-align: left;
+          unicode-bidi: normal;
+        }
+        
+        :global(.rtl-editor ul[dir="rtl"], .rtl-editor ol[dir="rtl"]) {
+          direction: rtl;
+          text-align: right;
+        }
+        
+        :global(.rtl-editor blockquote[dir="rtl"]) {
+          direction: rtl;
+          text-align: right;
+          border-right: 3px solid #e2e8f0;
+          border-left: none;
+          padding-right: 1rem;
+          padding-left: 0;
+        }
+      `}</style>
     </div>
   )
 }

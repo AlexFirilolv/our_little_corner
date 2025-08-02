@@ -31,6 +31,7 @@ import {
   MoreVertical
 } from 'lucide-react'
 import RichTextEditor from './RichTextEditor'
+import MediaEditor from './MediaEditor'
 import { format } from 'date-fns'
 
 interface MemoryGroupManagementProps {
@@ -44,6 +45,23 @@ export default function MemoryGroupManagement({ memoryGroups }: MemoryGroupManag
   const [isEditing, setIsEditing] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterLocked, setFilterLocked] = useState<'all' | 'locked' | 'unlocked'>('all')
+  
+  // Extended editing states for full memory control
+  const [editIsLocked, setEditIsLocked] = useState(false)
+  const [editUnlockDate, setEditUnlockDate] = useState('')
+  const [editUnlockTime, setEditUnlockTime] = useState('')
+  const [editLockVisibility, setEditLockVisibility] = useState<'public' | 'private'>('private')
+  const [editShowDateHint, setEditShowDateHint] = useState(false)
+  const [editShowImagePreview, setEditShowImagePreview] = useState(false)
+  const [editBlurPercentage, setEditBlurPercentage] = useState(95)
+  const [editUnlockHint, setEditUnlockHint] = useState('')
+  const [editShowTitle, setEditShowTitle] = useState(false)
+  const [editShowDescription, setEditShowDescription] = useState(false)
+  const [editShowMediaCount, setEditShowMediaCount] = useState(false)
+  const [editShowCreationDate, setEditShowCreationDate] = useState(false)
+  const [editUnlockType, setEditUnlockType] = useState<'scheduled' | 'task_based'>('scheduled')
+  const [editUnlockTask, setEditUnlockTask] = useState('')
+  const [mediaEditingGroup, setMediaEditingGroup] = useState<MemoryGroup | null>(null)
   
   const router = useRouter()
 
@@ -66,6 +84,23 @@ export default function MemoryGroupManagement({ memoryGroups }: MemoryGroupManag
     setEditingGroup(group)
     setEditTitle(group.title || '')
     setEditDescription(group.description || '')
+    
+    // Set all extended options
+    setEditIsLocked(group.is_locked || false)
+    setEditUnlockDate(group.unlock_date ? new Date(group.unlock_date).toISOString().slice(0, 10) : '')
+    setEditUnlockTime(group.unlock_date ? new Date(group.unlock_date).toISOString().slice(11, 16) : '')
+    setEditLockVisibility(group.lock_visibility || 'private')
+    setEditShowDateHint(group.show_date_hint || false)
+    setEditShowImagePreview(group.show_image_preview || false)
+    setEditBlurPercentage(group.blur_percentage || 95)
+    setEditUnlockHint(group.unlock_hint || '')
+    setEditShowTitle(group.show_title || false)
+    setEditShowDescription(group.show_description || false)
+    setEditShowMediaCount(group.show_media_count || false)
+    setEditShowCreationDate(group.show_creation_date || false)
+    setEditUnlockType(group.unlock_type || 'scheduled')
+    setEditUnlockTask(group.unlock_task || '')
+    
     setIsEditing(true)
   }
 
@@ -75,7 +110,22 @@ export default function MemoryGroupManagement({ memoryGroups }: MemoryGroupManag
     try {
       const updates: UpdateMemoryGroup = {
         title: editTitle || undefined,
-        description: editDescription || undefined
+        description: editDescription || undefined,
+        is_locked: editIsLocked,
+        unlock_date: (editUnlockDate && editUnlockTime) 
+          ? new Date(`${editUnlockDate}T${editUnlockTime}`) 
+          : null, // Explicitly set to null to clear the field
+        lock_visibility: editLockVisibility,
+        show_date_hint: editShowDateHint,
+        show_image_preview: editShowImagePreview,
+        blur_percentage: editBlurPercentage,
+        unlock_hint: editUnlockHint || undefined,
+        show_title: editShowTitle,
+        show_description: editShowDescription,
+        show_media_count: editShowMediaCount,
+        show_creation_date: editShowCreationDate,
+        unlock_type: editUnlockType,
+        unlock_task: editUnlockTask || undefined
       }
 
       const response = await fetch('/api/memory-groups', {
@@ -295,6 +345,15 @@ export default function MemoryGroupManagement({ memoryGroups }: MemoryGroupManag
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => setMediaEditingGroup(group)}
+                        title="Edit media"
+                      >
+                        <ImageIcon className="h-4 w-4" />
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => toggleLock(group)}
                         title={group.is_locked ? 'Unlock memory' : 'Lock memory'}
                       >
@@ -309,6 +368,7 @@ export default function MemoryGroupManagement({ memoryGroups }: MemoryGroupManag
                         variant="ghost"
                         size="sm"
                         onClick={() => handleEdit(group)}
+                        title="Edit memory settings"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -318,6 +378,7 @@ export default function MemoryGroupManagement({ memoryGroups }: MemoryGroupManag
                         size="sm"
                         onClick={() => handleDelete(group)}
                         className="text-destructive hover:text-destructive"
+                        title="Delete memory"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -360,11 +421,11 @@ export default function MemoryGroupManagement({ memoryGroups }: MemoryGroupManag
 
       {/* Edit Dialog */}
       <Dialog open={isEditing} onOpenChange={setIsEditing}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Memory</DialogTitle>
             <DialogDescription>
-              Update the title and description for this memory
+              Update all aspects of this memory including content, privacy settings, and visibility options
             </DialogDescription>
           </DialogHeader>
           
@@ -386,6 +447,230 @@ export default function MemoryGroupManagement({ memoryGroups }: MemoryGroupManag
                 placeholder="Memory description..."
               />
             </div>
+
+            {/* Privacy & Locking Settings */}
+            <div className="space-y-4 border-t pt-4">
+              <h3 className="text-lg font-medium">Privacy & Locking Settings</h3>
+              
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant={editIsLocked ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setEditIsLocked(!editIsLocked)}
+                  className="flex items-center gap-2"
+                >
+                  {editIsLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                  {editIsLocked ? 'Locked' : 'Visible'}
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  {editIsLocked ? 'Memory is hidden from gallery' : 'Memory is visible in gallery'}
+                </span>
+              </div>
+
+              {editIsLocked && (
+                <div className="space-y-4 p-4 bg-accent/10 rounded-lg">
+                  <div className="space-y-2">
+                    <Label>Visibility When Locked</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={editLockVisibility === 'private' ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setEditLockVisibility('private')}
+                      >
+                        Private (Hidden)
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={editLockVisibility === 'public' ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setEditLockVisibility('public')}
+                      >
+                        Public (Visible but Locked)
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Unlock Scheduling */}
+                  <div className="space-y-2">
+                    <Label>Schedule Unlock (Optional)</Label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Input
+                          type="date"
+                          value={editUnlockDate}
+                          onChange={(e) => setEditUnlockDate(e.target.value)}
+                          className="romantic-input"
+                        />
+                      </div>
+                      <div>
+                        <Input
+                          type="time"
+                          value={editUnlockTime}
+                          onChange={(e) => setEditUnlockTime(e.target.value)}
+                          className="romantic-input"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Public Lock Options */}
+                  {editLockVisibility === 'public' && (
+                    <div className="space-y-4 border-t border-accent/20 pt-4">
+                      <div className="text-sm font-medium">Public Lock Settings</div>
+                      
+                      {/* Visibility Controls */}
+                      <div className="space-y-3 p-3 bg-accent/5 rounded-lg">
+                        <div className="text-sm font-medium text-muted-foreground">Show to users when locked:</div>
+                        
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="edit-show-title"
+                            checked={editShowTitle}
+                            onChange={(e) => setEditShowTitle(e.target.checked)}
+                            className="rounded"
+                          />
+                          <Label htmlFor="edit-show-title" className="text-sm">Title</Label>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="edit-show-description"
+                            checked={editShowDescription}
+                            onChange={(e) => setEditShowDescription(e.target.checked)}
+                            className="rounded"
+                          />
+                          <Label htmlFor="edit-show-description" className="text-sm">Description</Label>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="edit-show-media-count"
+                            checked={editShowMediaCount}
+                            onChange={(e) => setEditShowMediaCount(e.target.checked)}
+                            className="rounded"
+                          />
+                          <Label htmlFor="edit-show-media-count" className="text-sm">Media count</Label>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="edit-show-creation-date"
+                            checked={editShowCreationDate}
+                            onChange={(e) => setEditShowCreationDate(e.target.checked)}
+                            className="rounded"
+                          />
+                          <Label htmlFor="edit-show-creation-date" className="text-sm">Creation date</Label>
+                        </div>
+                      </div>
+                      
+                      {/* Date Hint */}
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="edit-show-date-hint"
+                          checked={editShowDateHint}
+                          onChange={(e) => setEditShowDateHint(e.target.checked)}
+                          className="rounded"
+                        />
+                        <Label htmlFor="edit-show-date-hint" className="text-sm">Show date when memory was created</Label>
+                      </div>
+
+                      {/* Image Preview */}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="edit-show-image-preview"
+                            checked={editShowImagePreview}
+                            onChange={(e) => setEditShowImagePreview(e.target.checked)}
+                            className="rounded"
+                          />
+                          <Label htmlFor="edit-show-image-preview" className="text-sm">Show blurred preview image</Label>
+                        </div>
+                        
+                        {editShowImagePreview && (
+                          <div className="ml-6 space-y-2">
+                            <Label htmlFor="edit-blur-percentage" className="text-sm">Blur intensity: {editBlurPercentage}%</Label>
+                            <input
+                              type="range"
+                              id="edit-blur-percentage"
+                              min="50"
+                              max="98"
+                              value={editBlurPercentage}
+                              onChange={(e) => setEditBlurPercentage(Number(e.target.value))}
+                              className="w-full"
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Unlock Hint */}
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-unlock-hint">Hint Text (Optional)</Label>
+                        <Input
+                          id="edit-unlock-hint"
+                          placeholder="e.g., 'A special surprise awaits...'"
+                          value={editUnlockHint}
+                          onChange={(e) => setEditUnlockHint(e.target.value)}
+                          className="romantic-input"
+                        />
+                      </div>
+
+                      {/* Task Assignment - Only for public locked memories without schedule */}
+                      {editLockVisibility === 'public' && !editUnlockDate && (
+                        <div className="space-y-4 border-t border-accent/20 pt-4">
+                          <div className="text-sm font-medium">Task-Based Unlocking</div>
+                          
+                          <div className="space-y-2">
+                            <Label>Unlock Method</Label>
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                variant={editUnlockType === 'scheduled' ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setEditUnlockType('scheduled')}
+                              >
+                                Time-Based
+                              </Button>
+                              <Button
+                                type="button"
+                                variant={editUnlockType === 'task_based' ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setEditUnlockType('task_based')}
+                              >
+                                Task-Based
+                              </Button>
+                            </div>
+                          </div>
+
+                          {editUnlockType === 'task_based' && (
+                            <div className="space-y-2">
+                              <Label htmlFor="edit-unlock-task">Task Assignment</Label>
+                              <Input
+                                id="edit-unlock-task"
+                                placeholder="e.g., 'Complete your first week of exercise' or 'Send me a photo of your smile'"
+                                value={editUnlockTask}
+                                onChange={(e) => setEditUnlockTask(e.target.value)}
+                                className="romantic-input"
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Describe the task that needs to be completed to unlock this memory
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
           
           <div className="flex justify-end gap-2 mt-6">
@@ -398,6 +683,19 @@ export default function MemoryGroupManagement({ memoryGroups }: MemoryGroupManag
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Media Editor */}
+      {mediaEditingGroup && (
+        <MediaEditor
+          memoryGroup={mediaEditingGroup}
+          isOpen={!!mediaEditingGroup}
+          onClose={() => setMediaEditingGroup(null)}
+          onUpdate={() => {
+            setMediaEditingGroup(null)
+            router.refresh()
+          }}
+        />
+      )}
     </div>
   )
 }
