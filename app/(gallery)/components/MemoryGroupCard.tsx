@@ -31,6 +31,18 @@ export default function MemoryGroupCard({ memoryGroup, viewMode, onClick }: Memo
   // Check if memory is actually locked (and not just scheduled for future unlock)
   const isCurrentlyLocked = memoryGroup.is_locked && 
     (!memoryGroup.unlock_date || memoryGroup.unlock_date > new Date())
+
+  // Determine if this memory should be clickable
+  const isClickable = !isCurrentlyLocked || memoryGroup.lock_visibility === 'private'
+
+  // Handle click - prevent access to locked public memories
+  const handleClick = () => {
+    if (isCurrentlyLocked && memoryGroup.lock_visibility === 'public') {
+      // For public locked memories, prevent opening the modal
+      return
+    }
+    onClick()
+  }
   
   // Render media with blur effect if needed
   const renderMediaContent = (className: string, size: 'small' | 'medium' | 'large' = 'medium') => {
@@ -122,9 +134,12 @@ export default function MemoryGroupCard({ memoryGroup, viewMode, onClick }: Memo
               <div className="flex items-start justify-between">
                 <div className="min-w-0 flex-1">
                   <h3 className="font-romantic text-lg text-primary truncate">
-                    {memoryGroup.title || 'Untitled Memory'}
+                    {(isCurrentlyLocked && memoryGroup.lock_visibility === 'public' && !memoryGroup.show_title) 
+                      ? 'Locked Memory' 
+                      : (memoryGroup.title || 'Untitled Memory')
+                    }
                   </h3>
-                  {memoryGroup.description && (
+                  {memoryGroup.description && !(isCurrentlyLocked && memoryGroup.lock_visibility === 'public' && !memoryGroup.show_description) && (
                     <div 
                       className="text-sm text-muted-foreground mt-1 line-clamp-2 prose prose-sm"
                       dangerouslySetInnerHTML={{ __html: memoryGroup.description }}
@@ -132,10 +147,12 @@ export default function MemoryGroupCard({ memoryGroup, viewMode, onClick }: Memo
                   )}
                 </div>
                 <div className="flex flex-col items-end gap-1 ml-4">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Users className="h-3 w-3" />
-                    {mediaCount}
-                  </div>
+                  {!(isCurrentlyLocked && memoryGroup.lock_visibility === 'public' && !memoryGroup.show_media_count) && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Users className="h-3 w-3" />
+                      {mediaCount}
+                    </div>
+                  )}
                   <time className="text-xs text-muted-foreground">
                     {format(getMemoryDate(), 'MMM d, yyyy')}
                   </time>
@@ -363,16 +380,13 @@ export default function MemoryGroupCard({ memoryGroup, viewMode, onClick }: Memo
                     {memoryGroup.unlock_hint && (
                       <p className="text-sm font-medium">{memoryGroup.unlock_hint}</p>
                     )}
-                    {memoryGroup.unlock_type === 'scheduled' && memoryGroup.unlock_date && (
+                    {memoryGroup.unlock_date && (
                       <div className="mt-2">
                         <CountdownTimer 
                           unlockDate={new Date(memoryGroup.unlock_date)} 
                           className="text-white justify-center"
                         />
                       </div>
-                    )}
-                    {memoryGroup.unlock_type === 'task_based' && memoryGroup.unlock_task && (
-                      <p className="text-xs mt-1 opacity-90">Task: {memoryGroup.unlock_task}</p>
                     )}
                   </div>
                 </div>
@@ -383,14 +397,17 @@ export default function MemoryGroupCard({ memoryGroup, viewMode, onClick }: Memo
             <div className="p-4">
               <div className="flex items-start justify-between mb-2">
                 <h3 className="font-romantic text-lg text-primary line-clamp-2 flex-1">
-                  {memoryGroup.title || 'Untitled Memory'}
+                  {(isCurrentlyLocked && memoryGroup.lock_visibility === 'public' && !memoryGroup.show_title) 
+                    ? 'Locked Memory' 
+                    : (memoryGroup.title || 'Untitled Memory')
+                  }
                 </h3>
                 {memoryGroup.is_locked && (
                   <Lock className="h-4 w-4 text-muted-foreground ml-2 flex-shrink-0" />
                 )}
               </div>
 
-              {memoryGroup.description && (
+              {memoryGroup.description && !(isCurrentlyLocked && memoryGroup.lock_visibility === 'public' && !memoryGroup.show_description) && (
                 <div 
                   className="text-sm text-muted-foreground mb-3 line-clamp-2 prose prose-sm"
                   dangerouslySetInnerHTML={{ __html: memoryGroup.description }}
@@ -399,10 +416,12 @@ export default function MemoryGroupCard({ memoryGroup, viewMode, onClick }: Memo
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="text-xs">
-                    <Users className="h-3 w-3 mr-1" />
-                    {mediaCount}
-                  </Badge>
+                  {!(isCurrentlyLocked && memoryGroup.lock_visibility === 'public' && !memoryGroup.show_media_count) && (
+                    <Badge variant="secondary" className="text-xs">
+                      <Users className="h-3 w-3 mr-1" />
+                      {mediaCount}
+                    </Badge>
+                  )}
                   {imageCount > 0 && (
                     <Badge variant="outline" className="text-xs">
                       <ImageIcon className="h-3 w-3 mr-1" />
@@ -430,24 +449,27 @@ export default function MemoryGroupCard({ memoryGroup, viewMode, onClick }: Memo
   }
 
   const getCardClassName = () => {
-    const baseClasses = "cursor-pointer transition-all duration-300 hover:shadow-lg"
+    // Different styles for clickable vs non-clickable cards
+    const baseClasses = isClickable 
+      ? "cursor-pointer transition-all duration-300 hover:shadow-lg"
+      : "cursor-default transition-all duration-300 opacity-75"
     
     switch (viewMode) {
       case 'list':
-        return `${baseClasses} border-b border-accent/20 last:border-b-0 hover:bg-accent/5`
+        return `${baseClasses} border-b border-accent/20 last:border-b-0 ${isClickable ? 'hover:bg-accent/5' : ''}`
       case 'icons':
-        return `${baseClasses} rounded-lg overflow-hidden bg-white/80 hover:scale-105`
+        return `${baseClasses} rounded-lg overflow-hidden bg-white/80 ${isClickable ? 'hover:scale-105' : ''}`
       case 'columns':
-        return `${baseClasses} bg-white/80 rounded-lg border border-accent/20 hover:border-primary/30`
+        return `${baseClasses} bg-white/80 rounded-lg border border-accent/20 ${isClickable ? 'hover:border-primary/30' : ''}`
       case 'timeline':
-        return `${baseClasses} border-l-2 border-accent/20 hover:border-primary/50 bg-white/50 hover:bg-white/80`
+        return `${baseClasses} border-l-2 border-accent/20 ${isClickable ? 'hover:border-primary/50 bg-white/50 hover:bg-white/80' : 'bg-white/30'}`
       default: // gallery
-        return `${baseClasses} bg-white/80 rounded-lg border border-accent/20 hover:border-primary/30 hover:scale-[1.02]`
+        return `${baseClasses} bg-white/80 rounded-lg border border-accent/20 ${isClickable ? 'hover:border-primary/30 hover:scale-[1.02]' : ''}`
     }
   }
 
   return (
-    <div className={getCardClassName()} onClick={onClick}>
+    <div className={getCardClassName()} onClick={handleClick}>
       {renderContent()}
     </div>
   )

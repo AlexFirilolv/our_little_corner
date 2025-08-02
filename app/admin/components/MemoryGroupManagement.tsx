@@ -371,12 +371,10 @@ export default function MemoryGroupManagement({ memoryGroups }: MemoryGroupManag
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="edit-title">Title</Label>
-              <Input
-                id="edit-title"
+              <RichTextEditor
                 value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
+                onChange={setEditTitle}
                 placeholder="Memory title..."
-                className="romantic-input"
               />
             </div>
             

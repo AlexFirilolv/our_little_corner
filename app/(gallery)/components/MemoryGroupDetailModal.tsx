@@ -67,9 +67,9 @@ export default function MemoryGroupDetailModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[90vh] p-0 overflow-hidden">
-        <div className="flex h-full">
+        <div className="flex flex-col md:flex-row h-full">
           {/* Media Display Area */}
-          <div className="flex-1 relative bg-black flex items-center justify-center">
+          <div className="flex-1 relative bg-black flex items-center justify-center min-h-[50vh] md:min-h-auto order-2 md:order-1">
             {mediaItems.length === 0 ? (
               <div className="text-center text-white/60">
                 <Heart className="h-16 w-16 mx-auto mb-4" />
@@ -83,14 +83,14 @@ export default function MemoryGroupDetailModal({
                     <video
                       src={currentMedia.s3_url}
                       controls
-                      className="max-w-full max-h-full"
+                      className="max-w-full max-h-full w-full h-full object-contain"
                       autoPlay={false}
                     />
                   ) : (
                     <img
                       src={currentMedia.s3_url}
                       alt={currentMedia.title || currentMedia.original_name}
-                      className="max-w-full max-h-full object-contain"
+                      className="max-w-full max-h-full object-contain w-full h-full"
                     />
                   )}
                 </div>
@@ -136,36 +136,23 @@ export default function MemoryGroupDetailModal({
           </div>
 
           {/* Info Panel */}
-          <div className="w-96 bg-white flex flex-col max-h-[90vh]">
+          <div className="w-full md:w-96 bg-white flex flex-col max-h-[40vh] md:max-h-[90vh] order-1 md:order-2">
             {/* Header */}
-            <DialogHeader className="p-6 border-b border-accent/20">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <DialogTitle className="font-romantic text-xl text-primary">
-                    {memoryGroup.title || 'Untitled Memory'}
-                  </DialogTitle>
-                  {memoryGroup.description && (
-                    <div 
-                      className="text-muted-foreground mt-2 prose prose-sm"
-                      dangerouslySetInnerHTML={{ __html: memoryGroup.description }}
-                    />
-                  )}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => window.open('/admin', '_blank')}
-                  className="text-muted-foreground hover:text-foreground"
-                  title="Edit in Admin Panel"
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
-              </div>
+            <DialogHeader className="p-4 md:p-6 border-b border-accent/20">
+              <DialogTitle className="font-romantic text-xl text-primary">
+                {memoryGroup.title || 'Untitled Memory'}
+              </DialogTitle>
+              {memoryGroup.description && (
+                <div 
+                  className="text-muted-foreground mt-2 prose prose-sm"
+                  dangerouslySetInnerHTML={{ __html: memoryGroup.description }}
+                />
+              )}
             </DialogHeader>
 
             {/* Current Media Info */}
             {currentMedia && (
-              <div className="p-6 border-b border-accent/20">
+              <div className="p-4 md:p-6 border-b border-accent/20">
                 <h3 className="font-medium mb-3 flex items-center gap-2">
                   {currentMedia.file_type.startsWith('video/') ? (
                     <Video className="h-4 w-4" />
@@ -191,18 +178,6 @@ export default function MemoryGroupDetailModal({
                       {format(new Date(currentMedia.date_taken), 'MMM d, yyyy • h:mm a')}
                     </div>
                   )}
-                  
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <HardDrive className="h-4 w-4" />
-                    {formatFileSize(currentMedia.file_size)}
-                  </div>
-
-                  {currentMedia.width && currentMedia.height && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <ImageIcon className="h-4 w-4" />
-                      {currentMedia.width} × {currentMedia.height}
-                    </div>
-                  )}
 
                   {currentMedia.duration && (
                     <div className="flex items-center gap-2 text-muted-foreground">
@@ -214,62 +189,12 @@ export default function MemoryGroupDetailModal({
               </div>
             )}
 
-            {/* Memory Group Stats */}
-            <div className="p-6 border-b border-accent/20">
-              <h3 className="font-medium mb-3 flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Memory Statistics
-              </h3>
-              
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="text-center p-3 bg-accent/10 rounded-lg">
-                  <div className="text-lg font-bold text-primary">
-                    {mediaItems.length}
-                  </div>
-                  <div className="text-muted-foreground text-xs">
-                    Total Items
-                  </div>
-                </div>
-                
-                <div className="text-center p-3 bg-accent/10 rounded-lg">
-                  <div className="text-lg font-bold text-primary">
-                    {mediaItems.filter(m => m.file_type.startsWith('image/')).length}
-                  </div>
-                  <div className="text-muted-foreground text-xs">
-                    Photos
-                  </div>
-                </div>
-                
-                <div className="text-center p-3 bg-accent/10 rounded-lg">
-                  <div className="text-lg font-bold text-primary">
-                    {mediaItems.filter(m => m.file_type.startsWith('video/')).length}
-                  </div>
-                  <div className="text-muted-foreground text-xs">
-                    Videos
-                  </div>
-                </div>
-                
-                <div className="text-center p-3 bg-accent/10 rounded-lg">
-                  <div className="text-lg font-bold text-primary">
-                    {formatFileSize(mediaItems.reduce((sum, m) => sum + m.file_size, 0))}
-                  </div>
-                  <div className="text-muted-foreground text-xs">
-                    Total Size
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 flex items-center gap-2 text-muted-foreground text-sm">
-                <Calendar className="h-4 w-4" />
-                Created {format(new Date(memoryGroup.created_at), 'MMM d, yyyy')}
-              </div>
-            </div>
 
             {/* Media Thumbnails */}
             {mediaItems.length > 1 && (
-              <div className="flex-1 overflow-auto p-6">
+              <div className="flex-1 overflow-auto p-4 md:p-6">
                 <h3 className="font-medium mb-3">All Media</h3>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-4 md:grid-cols-3 gap-2">
                   {mediaItems.map((media, index) => (
                     <div
                       key={media.id}

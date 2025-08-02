@@ -49,10 +49,12 @@ export default function EnhancedUploadForm() {
   const [lockVisibility, setLockVisibility] = useState<'public' | 'private'>('private')
   const [showDateHint, setShowDateHint] = useState(false)
   const [showImagePreview, setShowImagePreview] = useState(false)
-  const [blurPercentage, setBlurPercentage] = useState(80)
+  const [blurPercentage, setBlurPercentage] = useState(95)
   const [unlockHint, setUnlockHint] = useState('')
-  const [unlockTask, setUnlockTask] = useState('')
-  const [unlockType, setUnlockType] = useState<'scheduled' | 'task_based'>('scheduled')
+  // Public visibility controls
+  const [showTitle, setShowTitle] = useState(false)
+  const [showDescription, setShowDescription] = useState(false)
+  const [showMediaCount, setShowMediaCount] = useState(false)
   
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
@@ -104,8 +106,10 @@ export default function EnhancedUploadForm() {
         show_image_preview: showImagePreview,
         blur_percentage: blurPercentage,
         unlock_hint: unlockHint || undefined,
-        unlock_task: unlockTask || undefined,
-        unlock_type: unlockType
+        // Public visibility controls
+        show_title: showTitle,
+        show_description: showDescription,
+        show_media_count: showMediaCount
       }
 
       const groupResponse = await fetch('/api/memory-groups', {
@@ -219,10 +223,12 @@ export default function EnhancedUploadForm() {
       setLockVisibility('private')
       setShowDateHint(false)
       setShowImagePreview(false)
-      setBlurPercentage(80)
+      setBlurPercentage(95)
       setUnlockHint('')
-      setUnlockTask('')
-      setUnlockType('scheduled')
+      // Reset public visibility controls
+      setShowTitle(false)
+      setShowDescription(false)
+      setShowMediaCount(false)
       
       // Refresh the page
       router.refresh()
@@ -259,12 +265,10 @@ export default function EnhancedUploadForm() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="memory-title">Memory Title</Label>
-            <Input
-              id="memory-title"
-              placeholder="e.g., Our Romantic Evening, Beach Vacation 2024..."
+            <RichTextEditor
               value={memoryTitle}
-              onChange={(e) => setMemoryTitle(e.target.value)}
-              className="romantic-input"
+              onChange={setMemoryTitle}
+              placeholder="e.g., Our Romantic Evening, Beach Vacation 2024..."
             />
           </div>
 
@@ -383,49 +387,53 @@ export default function EnhancedUploadForm() {
                 </p>
               </div>
 
-              {/* Unlock Type */}
-              <div className="space-y-2">
-                <Label>Unlock Method</Label>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant={unlockType === 'scheduled' ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setUnlockType('scheduled')}
-                  >
-                    <Clock className="h-4 w-4 mr-1" />
-                    Scheduled
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={unlockType === 'task_based' ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setUnlockType('task_based')}
-                  >
-                    <CheckSquare className="h-4 w-4 mr-1" />
-                    Task-Based
-                  </Button>
-                </div>
-              </div>
-
-              {/* Task-Based Unlock Options */}
-              {unlockType === 'task_based' && (
-                <div className="space-y-2">
-                  <Label htmlFor="unlock-task">Task Description</Label>
-                  <textarea
-                    id="unlock-task"
-                    placeholder="Describe the task that needs to be completed to unlock this memory..."
-                    value={unlockTask}
-                    onChange={(e) => setUnlockTask(e.target.value)}
-                    className="w-full p-2 border border-accent/30 rounded-lg bg-white/50 min-h-[80px] font-body text-sm"
-                  />
-                </div>
-              )}
 
               {/* Public Lock Options */}
               {lockVisibility === 'public' && (
                 <div className="space-y-4 border-t border-accent/20 pt-4">
-                  <div className="text-sm font-medium">Public Lock Hints</div>
+                  <div className="text-sm font-medium">Public Lock Visibility & Hints</div>
+                  
+                  {/* Visibility Controls */}
+                  <div className="space-y-3 p-3 bg-accent/5 rounded-lg">
+                    <div className="text-sm font-medium text-muted-foreground">Show to users when locked:</div>
+                    
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="show-title"
+                        checked={showTitle}
+                        onChange={(e) => setShowTitle(e.target.checked)}
+                        className="rounded"
+                      />
+                      <Label htmlFor="show-title" className="text-sm">Title</Label>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="show-description"
+                        checked={showDescription}
+                        onChange={(e) => setShowDescription(e.target.checked)}
+                        className="rounded"
+                      />
+                      <Label htmlFor="show-description" className="text-sm">Description</Label>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="show-media-count"
+                        checked={showMediaCount}
+                        onChange={(e) => setShowMediaCount(e.target.checked)}
+                        className="rounded"
+                      />
+                      <Label htmlFor="show-media-count" className="text-sm">Media count</Label>
+                    </div>
+                    
+                    <p className="text-xs text-muted-foreground">
+                      By default, all information is hidden when the memory is locked. Check the boxes above to show specific details to users.
+                    </p>
+                  </div>
                   
                   {/* Date Hint */}
                   <div className="flex items-center gap-2">
@@ -458,8 +466,8 @@ export default function EnhancedUploadForm() {
                         <input
                           type="range"
                           id="blur-percentage"
-                          min="20"
-                          max="100"
+                          min="50"
+                          max="98"
                           value={blurPercentage}
                           onChange={(e) => setBlurPercentage(Number(e.target.value))}
                           className="w-full"

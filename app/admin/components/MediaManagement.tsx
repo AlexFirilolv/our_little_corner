@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Image from 'next/image'
 import { MediaItem } from '@/lib/db'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,7 +17,9 @@ import {
   FileText,
   Save,
   X,
-  AlertTriangle
+  AlertTriangle,
+  Upload,
+  RefreshCw
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import RichTextEditor from './RichTextEditor'
@@ -31,6 +33,8 @@ interface EditingItem {
   title: string
   note: string
   date_taken: string
+  newFile?: File
+  newFilePreview?: string
 }
 
 export default function MediaManagement({ mediaItems }: MediaManagementProps) {
@@ -38,6 +42,7 @@ export default function MediaManagement({ mediaItems }: MediaManagementProps) {
   const [editingItem, setEditingItem] = useState<EditingItem | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Filter media based on search
   const filteredMedia = mediaItems.filter(media =>
@@ -55,23 +60,101 @@ export default function MediaManagement({ mediaItems }: MediaManagementProps) {
     })
   }
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file && editingItem) {
+      // Clean up previous preview
+      if (editingItem.newFilePreview) {
+        URL.revokeObjectURL(editingItem.newFilePreview)
+      }
+      
+      const preview = file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined
+      setEditingItem(prev => prev ? {
+        ...prev,
+        newFile: file,
+        newFilePreview: preview
+      } : null)
+    }
+  }
+
+  const handleRemoveNewFile = () => {
+    if (editingItem?.newFilePreview) {
+      URL.revokeObjectURL(editingItem.newFilePreview)
+    }
+    setEditingItem(prev => prev ? {
+      ...prev,
+      newFile: undefined,
+      newFilePreview: undefined
+    } : null)
+  }
+
   const handleSaveEdit = async () => {
     if (!editingItem) return
 
     setIsLoading(true)
     try {
+      let updateData: any = {
+        id: editingItem.id,
+        title: editingItem.title || undefined,
+        note: editingItem.note || undefined,
+        date_taken: editingItem.date_taken ? new Date(editingItem.date_taken).toISOString() : undefined,
+      }
+
+      // If there's a new file, upload it first
+      if (editingItem.newFile) {
+        // Get presigned URL
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: editingItem.newFile.name,
+            fileType: editingItem.newFile.type,
+            fileSize: editingItem.newFile.size
+          })
+        })
+
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to get upload URL')
+        }
+
+        const { uploadUrl, key, fileUrl } = await uploadResponse.json()
+
+        // Upload to S3
+        const s3Response = await fetch(uploadUrl, {
+          method: 'PUT',
+          body: editingItem.newFile,
+          headers: {
+            'Content-Type': editingItem.newFile.type
+          }
+        })
+
+        if (!s3Response.ok) {
+          throw new Error('Failed to upload file to S3')
+        }
+
+        // Add file info to update data
+        updateData = {
+          ...updateData,
+          filename: editingItem.newFile.name,
+          original_name: editingItem.newFile.name,
+          s3_key: key,
+          s3_url: fileUrl,
+          file_type: editingItem.newFile.type,
+          file_size: editingItem.newFile.size,
+        }
+      }
+
       const response = await fetch('/api/media', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: editingItem.id,
-          title: editingItem.title || undefined,
-          note: editingItem.note || undefined,
-          date_taken: editingItem.date_taken ? new Date(editingItem.date_taken).toISOString() : undefined,
-        }),
+        body: JSON.stringify(updateData),
       })
 
       if (response.ok) {
+        // Clean up preview URL
+        if (editingItem.newFilePreview) {
+          URL.revokeObjectURL(editingItem.newFilePreview)
+        }
         // Refresh the page to show updates
         window.location.reload()
       } else {
@@ -131,6 +214,15 @@ export default function MediaManagement({ mediaItems }: MediaManagementProps) {
 
   return (
     <div className="space-y-6">
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,video/*"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+      
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -189,6 +281,54 @@ export default function MediaManagement({ mediaItems }: MediaManagementProps) {
                 {editingItem?.id === media.id ? (
                   // Edit Mode
                   <div className="space-y-4">
+                    {/* Replace File Section */}
+                    <div>
+                      <label className="text-sm font-body font-medium mb-2 block">Replace File</label>
+                      <div className="border border-dashed border-accent/50 rounded-lg p-4">
+                        {editingItem.newFile ? (
+                          <div className="space-y-3">
+                            {/* New file preview */}
+                            <div className="relative aspect-video bg-accent/10 rounded overflow-hidden">
+                              {editingItem.newFile.type.startsWith('image/') && editingItem.newFilePreview ? (
+                                <img
+                                  src={editingItem.newFilePreview}
+                                  alt="New file preview"
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Video className="h-8 w-8 text-muted-foreground" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-muted-foreground">{editingItem.newFile.name}</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleRemoveNewFile}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <X className="h-4 w-4" />
+                                Remove
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="w-full"
+                          >
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Choose New File
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
                     <div>
                       <label className="text-sm font-body font-medium mb-1 block">Title</label>
                       <Input

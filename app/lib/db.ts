@@ -30,6 +30,10 @@ export interface MemoryGroup {
   unlock_task?: string
   unlock_type?: 'scheduled' | 'task_based'
   task_completed?: boolean
+  // Public visibility controls
+  show_title?: boolean
+  show_description?: boolean
+  show_media_count?: boolean
 }
 
 export interface CreateMemoryGroup {
@@ -46,6 +50,10 @@ export interface CreateMemoryGroup {
   unlock_task?: string
   unlock_type?: 'scheduled' | 'task_based'
   task_completed?: boolean
+  // Public visibility controls
+  show_title?: boolean
+  show_description?: boolean
+  show_media_count?: boolean
 }
 
 export interface UpdateMemoryGroup {
@@ -63,6 +71,10 @@ export interface UpdateMemoryGroup {
   unlock_task?: string
   unlock_type?: 'scheduled' | 'task_based'
   task_completed?: boolean
+  // Public visibility controls
+  show_title?: boolean
+  show_description?: boolean
+  show_media_count?: boolean
 }
 
 // Types for media items
@@ -108,6 +120,16 @@ export interface UpdateMediaItem {
   note?: string
   date_taken?: Date
   sort_order?: number
+  // File replacement fields
+  filename?: string
+  original_name?: string
+  s3_key?: string
+  s3_url?: string
+  file_type?: string
+  file_size?: number
+  width?: number
+  height?: number
+  duration?: number
 }
 
 export interface Session {
@@ -488,7 +510,7 @@ export async function createMediaItem(mediaData: CreateMediaItem): Promise<Media
 }
 
 /**
- * Update a media item (title, note, date_taken, sort_order)
+ * Update a media item (title, note, date_taken, sort_order, and file replacement fields)
  */
 export async function updateMediaItem(id: string, updates: UpdateMediaItem): Promise<MediaItem | null> {
   try {
@@ -520,6 +542,53 @@ export async function updateMediaItem(id: string, updates: UpdateMediaItem): Pro
       paramCount++
     }
 
+    // File replacement fields
+    if (updates.filename !== undefined) {
+      setParts.push(`filename = $${paramCount}`)
+      values.push(updates.filename)
+      paramCount++
+    }
+    if (updates.original_name !== undefined) {
+      setParts.push(`original_name = $${paramCount}`)
+      values.push(updates.original_name)
+      paramCount++
+    }
+    if (updates.s3_key !== undefined) {
+      setParts.push(`s3_key = $${paramCount}`)
+      values.push(updates.s3_key)
+      paramCount++
+    }
+    if (updates.s3_url !== undefined) {
+      setParts.push(`s3_url = $${paramCount}`)
+      values.push(updates.s3_url)
+      paramCount++
+    }
+    if (updates.file_type !== undefined) {
+      setParts.push(`file_type = $${paramCount}`)
+      values.push(updates.file_type)
+      paramCount++
+    }
+    if (updates.file_size !== undefined) {
+      setParts.push(`file_size = $${paramCount}`)
+      values.push(updates.file_size)
+      paramCount++
+    }
+    if (updates.width !== undefined) {
+      setParts.push(`width = $${paramCount}`)
+      values.push(updates.width)
+      paramCount++
+    }
+    if (updates.height !== undefined) {
+      setParts.push(`height = $${paramCount}`)
+      values.push(updates.height)
+      paramCount++
+    }
+    if (updates.duration !== undefined) {
+      setParts.push(`duration = $${paramCount}`)
+      values.push(updates.duration)
+      paramCount++
+    }
+
     if (setParts.length === 0) {
       throw new Error('No valid fields to update')
     }
@@ -528,7 +597,7 @@ export async function updateMediaItem(id: string, updates: UpdateMediaItem): Pro
 
     const result = await query(`
       UPDATE media 
-      SET ${setParts.join(', ')}
+      SET ${setParts.join(', ')}, updated_at = CURRENT_TIMESTAMP
       WHERE id = $${paramCount}
       RETURNING *
     `, values)
