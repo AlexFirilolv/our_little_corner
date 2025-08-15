@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { MediaItem, MemoryGroup } from '@/lib/types'
+import { htmlToDisplayText } from '@/lib/htmlUtils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -264,7 +265,7 @@ export default function MediaEditor({ memoryGroup, isOpen, onClose, onUpdate }: 
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Media - {memoryGroup.title || 'Untitled Memory'}</DialogTitle>
+          <DialogTitle>Edit Media - {htmlToDisplayText(memoryGroup.title) || 'Untitled Memory'}</DialogTitle>
           <DialogDescription>
             Add, remove, reorder, and edit media items in this memory
           </DialogDescription>
@@ -344,7 +345,7 @@ export default function MediaEditor({ memoryGroup, isOpen, onClose, onUpdate }: 
                     {/* Media Info */}
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-sm truncate">
-                        {media.title || media.original_name}
+                        {htmlToDisplayText(media.title) || media.original_name}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {formatFileSize(media.file_size)}

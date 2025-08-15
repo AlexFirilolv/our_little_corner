@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import Image from 'next/image'
 import { MediaItem } from '@/lib/types'
+import { htmlToDisplayText } from '@/lib/htmlUtils'
 import {
   Dialog,
   DialogContent,
@@ -119,7 +120,7 @@ export default function MediaDetailModal({ media, isOpen, onClose }: MediaDetail
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <DialogTitle className="text-2xl font-romantic text-primary mb-2">
-                {media.title || media.original_name}
+                {htmlToDisplayText(media.title) || media.original_name}
               </DialogTitle>
               <div className="flex items-center gap-4 text-sm text-muted-foreground font-body">
                 <div className="flex items-center gap-1">
@@ -164,21 +165,23 @@ export default function MediaDetailModal({ media, isOpen, onClose }: MediaDetail
             {!imageError ? (
               <>
                 {isVideo ? (
-                  <div className="relative max-w-full max-h-full">
+                  <div className="relative max-w-full max-h-full group">
                     <video
                       ref={videoRef}
                       src={media.s3_url}
                       className="max-w-full max-h-full object-contain"
                       controls={false}
                       muted={isVideoMuted}
+                      preload="metadata"
                       onPlay={() => setIsVideoPlaying(true)}
                       onPause={() => setIsVideoPlaying(false)}
                       onLoadedData={() => setImageLoaded(true)}
                       onError={() => setImageError(true)}
+                      onClick={handleVideoPlayPause}
                     />
                     
                     {/* Custom video controls */}
-                    <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between bg-black/50 backdrop-blur-sm rounded-lg px-4 py-2">
+                    <div className={`absolute bottom-4 left-4 right-4 flex items-center justify-between bg-black/70 backdrop-blur-sm rounded-lg px-4 py-3 transition-opacity duration-200 z-10 ${!isVideoPlaying || 'group-hover:opacity-100'} ${!isVideoPlaying ? 'opacity-100' : 'opacity-0'}`}>
                       <div className="flex items-center gap-3">
                         <Button
                           variant="ghost"
@@ -265,10 +268,9 @@ export default function MediaDetailModal({ media, isOpen, onClose }: MediaDetail
                 <h3 className="font-romantic text-lg text-primary">Our Memory</h3>
               </div>
               
-              <div 
-                className="prose prose-sm max-w-none font-body text-foreground/90"
-                dangerouslySetInnerHTML={{ __html: media.note }}
-              />
+              <div className="font-body text-foreground/90">
+                {htmlToDisplayText(media.note)}
+              </div>
               
               {/* Metadata */}
               <div className="mt-6 pt-4 border-t border-accent/20">

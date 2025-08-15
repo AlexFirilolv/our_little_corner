@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import Image from 'next/image'
 import { MediaItem } from '@/lib/types'
+import { htmlToDisplayText } from '@/lib/htmlUtils'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -394,7 +395,7 @@ export default function MediaManagement({ mediaItems }: MediaManagementProps) {
                   <div className="space-y-3">
                     {/* Title */}
                     <h3 className="font-romantic text-lg text-primary line-clamp-2">
-                      {media.title || media.original_name}
+                      {htmlToDisplayText(media.title) || media.original_name}
                     </h3>
 
                     {/* Metadata */}
@@ -422,12 +423,9 @@ export default function MediaManagement({ mediaItems }: MediaManagementProps) {
                     {media.note && (
                       <div className="flex items-start gap-2">
                         <FileText className="h-3 w-3 text-muted-foreground mt-0.5 flex-shrink-0" />
-                        <div 
-                          className="text-sm text-foreground/80 font-body line-clamp-3"
-                          dangerouslySetInnerHTML={{ 
-                            __html: (media.note || '').replace(/<[^>]*>/g, '').substring(0, 100) + ((media.note || '').length > 100 ? '...' : '')
-                          }} 
-                        />
+                        <div className="text-sm text-foreground/80 font-body line-clamp-3">
+                          {htmlToDisplayText(media.note, 100)}
+                        </div>
                       </div>
                     )}
 

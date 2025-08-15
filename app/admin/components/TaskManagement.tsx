@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { MemoryGroup } from '@/lib/types'
+import { htmlToDisplayText } from '@/lib/htmlUtils'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -103,7 +104,7 @@ export default function TaskManagement({ memoryGroups }: TaskManagementProps) {
               <div className="flex items-start justify-between">
                 <div className="min-w-0 flex-1">
                   <h3 className="font-romantic text-lg text-primary truncate">
-                    {group.title || 'Untitled Memory'}
+                    {htmlToDisplayText(group.title) || 'Untitled Memory'}
                   </h3>
                   
                   <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">

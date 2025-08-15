@@ -2,7 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useCorner } from '@/contexts/CornerContext'
 import { MemoryGroup, UpdateMemoryGroup } from '@/lib/types'
+import { htmlToDisplayText } from '@/lib/htmlUtils'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,9 +34,10 @@ import { format, isAfter, isBefore } from 'date-fns'
 
 interface LockingControlsProps {
   memoryGroups: MemoryGroup[]
+  refreshMemoryGroups: () => Promise<void>
 }
 
-export default function LockingControls({ memoryGroups }: LockingControlsProps) {
+export default function LockingControls({ memoryGroups, refreshMemoryGroups }: LockingControlsProps) {
   const [schedulingGroup, setSchedulingGroup] = useState<MemoryGroup | null>(null)
   const [scheduleDate, setScheduleDate] = useState('')
   const [scheduleTime, setScheduleTime] = useState('')
@@ -42,6 +45,7 @@ export default function LockingControls({ memoryGroups }: LockingControlsProps) 
   const [bulkAction, setBulkAction] = useState<'lock' | 'unlock' | null>(null)
   
   const router = useRouter()
+  const { currentCorner } = useCorner()
 
   // Categorize groups
   const lockedGroups = memoryGroups.filter(g => g.is_locked)
@@ -50,6 +54,11 @@ export default function LockingControls({ memoryGroups }: LockingControlsProps) 
   const pastScheduledGroups = memoryGroups.filter(g => g.unlock_date && g.unlock_date <= new Date())
 
   const toggleLock = async (group: MemoryGroup) => {
+    if (!currentCorner) {
+      alert('No corner selected. Please refresh the page.')
+      return
+    }
+
     try {
       const updates: UpdateMemoryGroup = {
         is_locked: !group.is_locked,
@@ -58,19 +67,27 @@ export default function LockingControls({ memoryGroups }: LockingControlsProps) 
 
       const response = await fetch('/api/memory-groups', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: group.id, ...updates })
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          id: group.id, 
+          corner_id: currentCorner.id,
+          ...updates 
+        })
       })
 
       if (!response.ok) {
-        throw new Error('Failed to update memory group')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to update memory group')
       }
 
-      router.refresh()
+      await refreshMemoryGroups()
       
     } catch (error) {
       console.error('Toggle lock error:', error)
-      alert('Failed to update memory. Please try again.')
+      alert(error instanceof Error ? error.message : 'Failed to update memory. Please try again.')
     }
   }
 
@@ -108,7 +125,7 @@ export default function LockingControls({ memoryGroups }: LockingControlsProps) 
       setSchedulingGroup(null)
       setScheduleDate('')
       setScheduleTime('')
-      router.refresh()
+      await refreshMemoryGroups()
       
     } catch (error) {
       console.error('Schedule error:', error)
@@ -132,7 +149,7 @@ export default function LockingControls({ memoryGroups }: LockingControlsProps) 
         throw new Error('Failed to clear schedule')
       }
 
-      router.refresh()
+      await refreshMemoryGroups()
       
     } catch (error) {
       console.error('Clear schedule error:', error)
@@ -165,7 +182,7 @@ export default function LockingControls({ memoryGroups }: LockingControlsProps) 
       )
 
       await Promise.all(promises)
-      router.refresh()
+      await refreshMemoryGroups()
       
     } catch (error) {
       console.error('Bulk action error:', error)
@@ -265,7 +282,7 @@ export default function LockingControls({ memoryGroups }: LockingControlsProps) 
               {scheduledGroups.map((group) => (
                 <div key={group.id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border">
                   <div className="flex-1">
-                    <h4 className="font-medium">{group.title || 'Untitled Memory'}</h4>
+                    <h4 className="font-medium">{htmlToDisplayText(group.title) || 'Untitled Memory'}</h4>
                     <p className="text-sm text-muted-foreground">
                       Unlocks on {format(group.unlock_date!, 'MMM d, yyyy • h:mm a')}
                     </p>
@@ -311,7 +328,7 @@ export default function LockingControls({ memoryGroups }: LockingControlsProps) 
               <div key={group.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/5">
                 <div className="flex-1">
                   <div className="flex items-center gap-3">
-                    <h4 className="font-medium">{group.title || 'Untitled Memory'}</h4>
+                    <h4 className="font-medium">{htmlToDisplayText(group.title) || 'Untitled Memory'}</h4>
                     
                     {group.is_locked ? (
                       <Badge variant="secondary" className="text-xs">
@@ -381,7 +398,7 @@ export default function LockingControls({ memoryGroups }: LockingControlsProps) 
           <DialogHeader>
             <DialogTitle>Schedule Unlock</DialogTitle>
             <DialogDescription>
-              Set when "{schedulingGroup?.title || 'this memory'}" should automatically unlock
+              Set when "{htmlToDisplayText(schedulingGroup?.title) || 'this memory'}" should automatically unlock
             </DialogDescription>
           </DialogHeader>
           

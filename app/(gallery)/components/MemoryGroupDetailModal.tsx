@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { MemoryGroup, MediaItem } from '@/lib/types'
+import { htmlToDisplayText } from '@/lib/htmlUtils'
 import {
   Dialog,
   DialogContent,
@@ -154,13 +155,12 @@ export default function MemoryGroupDetailModal({
               {/* Header */}
               <DialogHeader className="p-4 md:p-6 border-b border-accent/20">
                 <DialogTitle className="font-romantic text-xl text-primary">
-                  {memoryGroup.title || 'Untitled Memory'}
+                  {htmlToDisplayText(memoryGroup.title) || 'Untitled Memory'}
                 </DialogTitle>
                 {memoryGroup.description && (
-                  <div 
-                    className="text-muted-foreground mt-2 prose prose-sm"
-                    dangerouslySetInnerHTML={{ __html: memoryGroup.description }}
-                  />
+                  <div className="text-muted-foreground mt-2">
+                    {htmlToDisplayText(memoryGroup.description)}
+                  </div>
                 )}
               </DialogHeader>
 
@@ -174,16 +174,15 @@ export default function MemoryGroupDetailModal({
                       ) : (
                         <ImageIcon className="h-4 w-4" />
                       )}
-                      {currentMedia.title}
+                      {htmlToDisplayText(currentMedia.title)}
                     </h3>
                   )}
 
                   {currentMedia.note && (
                     <div className="mb-4">
-                      <div 
-                        className="text-sm text-muted-foreground prose prose-sm max-w-none"
-                        dangerouslySetInnerHTML={{ __html: currentMedia.note }}
-                      />
+                      <div className="text-sm text-muted-foreground">
+                        {htmlToDisplayText(currentMedia.note)}
+                      </div>
                     </div>
                   )}
 

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Heart, Image as ImageIcon, Video, Clock, Lock, Users } from 'lucide-react'
 import { format } from 'date-fns'
 import CountdownTimer from './CountdownTimer'
+import { htmlToDisplayText } from '@/lib/htmlUtils'
 
 interface MemoryGroupCardProps {
   memoryGroup: MemoryGroup
@@ -152,16 +153,14 @@ export default function MemoryGroupCard({ memoryGroup, viewMode, onClick }: Memo
                       Locked Memory
                     </h3>
                   ) : (
-                    <h3 
-                      className="font-romantic text-lg text-primary truncate prose prose-sm"
-                      dangerouslySetInnerHTML={{ __html: memoryGroup.title || 'Untitled Memory' }}
-                    />
+                    <h3 className="font-romantic text-lg text-primary truncate">
+                      {htmlToDisplayText(memoryGroup.title) || 'Untitled Memory'}
+                    </h3>
                   )}
                   {memoryGroup.description && !(isCurrentlyLocked && memoryGroup.lock_visibility === 'public' && !memoryGroup.show_description) && (
-                    <div 
-                      className="text-sm text-muted-foreground mt-1 line-clamp-2 prose prose-sm"
-                      dangerouslySetInnerHTML={{ __html: memoryGroup.description }}
-                    />
+                    <div className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                      {htmlToDisplayText(memoryGroup.description)}
+                    </div>
                   )}
                 </div>
                 <div className="flex flex-col items-end gap-1 ml-4">
@@ -231,10 +230,9 @@ export default function MemoryGroupCard({ memoryGroup, viewMode, onClick }: Memo
             
             {/* Content overlay */}
             <div className="absolute bottom-0 left-0 right-0 p-4 text-white transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
-              <h3 
-                className="font-romantic text-lg truncate prose prose-sm"
-                dangerouslySetInnerHTML={{ __html: memoryGroup.title || 'Untitled Memory' }}
-              />
+              <h3 className="font-romantic text-lg truncate text-white">
+                {htmlToDisplayText(memoryGroup.title) || 'Untitled Memory'}
+              </h3>
               <div className="flex items-center justify-between mt-2">
                 {!(isCurrentlyLocked && memoryGroup.lock_visibility === 'public' && !memoryGroup.show_media_count) && (
                   <div className="flex items-center gap-2 text-sm">
@@ -264,10 +262,9 @@ export default function MemoryGroupCard({ memoryGroup, viewMode, onClick }: Memo
           <div className="p-4 space-y-3">
             {/* Header */}
             <div className="flex items-start justify-between">
-              <h3 
-                className="font-romantic text-lg text-primary prose prose-sm"
-                dangerouslySetInnerHTML={{ __html: memoryGroup.title || 'Untitled Memory' }}
-              />
+              <h3 className="font-romantic text-lg text-primary">
+                {htmlToDisplayText(memoryGroup.title) || 'Untitled Memory'}
+              </h3>
               {memoryGroup.is_locked && (
                 <Lock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               )}
@@ -293,10 +290,9 @@ export default function MemoryGroupCard({ memoryGroup, viewMode, onClick }: Memo
 
             {/* Description */}
             {memoryGroup.description && (
-              <div 
-                className="text-sm text-muted-foreground line-clamp-3 prose prose-sm"
-                dangerouslySetInnerHTML={{ __html: memoryGroup.description }}
-              />
+              <div className="text-sm text-muted-foreground line-clamp-3">
+                {htmlToDisplayText(memoryGroup.description)}
+              </div>
             )}
 
             {/* Stats */}
@@ -369,15 +365,13 @@ export default function MemoryGroupCard({ memoryGroup, viewMode, onClick }: Memo
 
                 {/* Details */}
                 <div className="flex-1 min-w-0">
-                  <h3 
-                    className="font-romantic text-base text-primary truncate prose prose-sm"
-                    dangerouslySetInnerHTML={{ __html: memoryGroup.title || 'Untitled Memory' }}
-                  />
+                  <h3 className="font-romantic text-base text-primary truncate">
+                    {htmlToDisplayText(memoryGroup.title) || 'Untitled Memory'}
+                  </h3>
                   {memoryGroup.description && (
-                    <div 
-                      className="text-sm text-muted-foreground mt-1 line-clamp-2 prose prose-sm"
-                      dangerouslySetInnerHTML={{ __html: memoryGroup.description }}
-                    />
+                    <div className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                      {htmlToDisplayText(memoryGroup.description)}
+                    </div>
                   )}
                   <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                     {!(isCurrentlyLocked && memoryGroup.lock_visibility === 'public' && !memoryGroup.show_media_count) && (
@@ -447,10 +441,9 @@ export default function MemoryGroupCard({ memoryGroup, viewMode, onClick }: Memo
                     Locked Memory
                   </h3>
                 ) : (
-                  <h3 
-                    className="font-romantic text-lg text-primary line-clamp-2 flex-1 prose prose-sm"
-                    dangerouslySetInnerHTML={{ __html: memoryGroup.title || 'Untitled Memory' }}
-                  />
+                  <h3 className="font-romantic text-lg text-primary line-clamp-2 flex-1">
+                    {htmlToDisplayText(memoryGroup.title) || 'Untitled Memory'}
+                  </h3>
                 )}
                 {memoryGroup.is_locked && (
                   <Lock className="h-4 w-4 text-muted-foreground ml-2 flex-shrink-0" />
@@ -458,10 +451,9 @@ export default function MemoryGroupCard({ memoryGroup, viewMode, onClick }: Memo
               </div>
 
               {memoryGroup.description && !(isCurrentlyLocked && memoryGroup.lock_visibility === 'public' && !memoryGroup.show_description) && (
-                <div 
-                  className="text-sm text-muted-foreground mb-3 line-clamp-2 prose prose-sm"
-                  dangerouslySetInnerHTML={{ __html: memoryGroup.description }}
-                />
+                <div className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                  {htmlToDisplayText(memoryGroup.description)}
+                </div>
               )}
 
               <div className="flex items-center justify-between">

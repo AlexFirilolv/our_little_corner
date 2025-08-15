@@ -79,6 +79,12 @@ export async function signUpWithEmail(email: string, password: string, displayNa
 export async function signInWithGoogle(): Promise<FirebaseUser> {
   try {
     if (!auth) {
+      console.error('Firebase auth is null. Config check:', {
+        hasApiKey: !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+        hasAuthDomain: !!process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+        hasProjectId: !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        currentDomain: typeof window !== 'undefined' ? window.location.hostname : 'server-side'
+      });
       throw new Error('Firebase not initialized. Please check your configuration and environment variables.');
     }
     
@@ -92,12 +98,20 @@ export async function signInWithGoogle(): Promise<FirebaseUser> {
       prompt: 'select_account'
     });
     
+    console.log('Attempting Google sign-in with provider:', provider);
     const result = await signInWithPopup(auth, provider);
+    console.log('Google sign-in successful:', { uid: result.user.uid, email: result.user.email });
+    
     const user = mapFirebaseUser(result.user);
     if (!user) throw new Error('Failed to get user data');
     return user;
   } catch (error) {
-    console.error('Google sign in error:', error);
+    console.error('Google sign in error details:', {
+      error,
+      code: (error as AuthError)?.code,
+      message: (error as AuthError)?.message,
+      customData: (error as AuthError)?.customData
+    });
     
     // Handle specific Google Sign-In errors
     const authError = error as AuthError;
@@ -107,6 +121,8 @@ export async function signInWithGoogle(): Promise<FirebaseUser> {
       throw new Error('Pop-up was blocked. Please allow pop-ups and try again.');
     } else if (authError.code === 'auth/cancelled-popup-request') {
       throw new Error('Another sign-in request is already in progress.');
+    } else if (authError.code === 'auth/internal-error') {
+      throw new Error('Google Sign-In configuration error. Please check Firebase console settings for Google authentication.');
     }
     
     throw handleAuthError(authError);

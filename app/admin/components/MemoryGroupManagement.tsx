@@ -2,7 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation' 
+import { useCorner } from '@/contexts/CornerContext'
 import { MemoryGroup, UpdateMemoryGroup } from '@/lib/types'
+import { htmlToDisplayText } from '@/lib/htmlUtils'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -36,9 +38,10 @@ import { format } from 'date-fns'
 
 interface MemoryGroupManagementProps {
   memoryGroups: MemoryGroup[]
+  refreshMemoryGroups: () => Promise<void>
 }
 
-export default function MemoryGroupManagement({ memoryGroups }: MemoryGroupManagementProps) {
+export default function MemoryGroupManagement({ memoryGroups, refreshMemoryGroups }: MemoryGroupManagementProps) {
   const [editingGroup, setEditingGroup] = useState<MemoryGroup | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [editDescription, setEditDescription] = useState('')
@@ -64,6 +67,7 @@ export default function MemoryGroupManagement({ memoryGroups }: MemoryGroupManag
   const [mediaEditingGroup, setMediaEditingGroup] = useState<MemoryGroup | null>(null)
   
   const router = useRouter()
+  const { currentCorner } = useCorner()
 
   // Filter memory groups
   const filteredGroups = memoryGroups.filter(group => {
@@ -105,7 +109,10 @@ export default function MemoryGroupManagement({ memoryGroups }: MemoryGroupManag
   }
 
   const handleSaveEdit = async () => {
-    if (!editingGroup) return
+    if (!editingGroup || !currentCorner) {
+      alert('Unable to save. Please refresh the page.')
+      return
+    }
 
     try {
       const updates: UpdateMemoryGroup = {
@@ -132,7 +139,11 @@ export default function MemoryGroupManagement({ memoryGroups }: MemoryGroupManag
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ id: editingGroup.id, ...updates })
+        body: JSON.stringify({ 
+          id: editingGroup.id, 
+          corner_id: currentCorner?.id,
+          ...updates 
+        })
       })
 
       if (!response.ok) {
@@ -145,8 +156,8 @@ export default function MemoryGroupManagement({ memoryGroups }: MemoryGroupManag
       setEditTitle('')
       setEditDescription('')
       
-      // Refresh the page
-      router.refresh()
+      // Refresh the memory groups
+      await refreshMemoryGroups()
       
     } catch (error) {
       console.error('Update error:', error)
@@ -155,30 +166,41 @@ export default function MemoryGroupManagement({ memoryGroups }: MemoryGroupManag
   }
 
   const handleDelete = async (group: MemoryGroup) => {
-    if (!confirm(`Are you sure you want to delete "${group.title || 'Untitled Memory'}"? This will permanently delete the memory and all its media files.`)) {
+    if (!currentCorner) {
+      alert('No corner selected. Please refresh the page.')
+      return
+    }
+
+    if (!confirm(`Are you sure you want to delete "${htmlToDisplayText(group.title) || 'Untitled Memory'}"? This will permanently delete the memory and all its media files.`)) {
       return
     }
 
     try {
-      const response = await fetch(`/api/memory-groups?id=${group.id}`, {
+      const response = await fetch(`/api/memory-groups?id=${group.id}&corner_id=${currentCorner?.id}`, {
         method: 'DELETE',
         credentials: 'include'
       })
 
       if (!response.ok) {
-        throw new Error('Failed to delete memory group')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to delete memory group')
       }
 
-      // Refresh the page
-      router.refresh()
+      // Refresh the memory groups
+      await refreshMemoryGroups()
       
     } catch (error) {
       console.error('Delete error:', error)
-      alert('Failed to delete memory. Please try again.')
+      alert(error instanceof Error ? error.message : 'Failed to delete memory. Please try again.')
     }
   }
 
   const toggleLock = async (group: MemoryGroup) => {
+    if (!currentCorner) {
+      alert('No corner selected. Please refresh the page.')
+      return
+    }
+
     try {
       const updates: UpdateMemoryGroup = {
         is_locked: !group.is_locked
@@ -187,15 +209,20 @@ export default function MemoryGroupManagement({ memoryGroups }: MemoryGroupManag
       const response = await fetch('/api/memory-groups', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: group.id, ...updates })
+        credentials: 'include',
+        body: JSON.stringify({ 
+          id: group.id, 
+          corner_id: currentCorner?.id,
+          ...updates 
+        })
       })
 
       if (!response.ok) {
         throw new Error('Failed to update memory group')
       }
 
-      // Refresh the page
-      router.refresh()
+      // Refresh the memory groups
+      await refreshMemoryGroups()
       
     } catch (error) {
       console.error('Toggle lock error:', error)
@@ -282,7 +309,7 @@ export default function MemoryGroupManagement({ memoryGroups }: MemoryGroupManag
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="font-romantic text-lg text-primary truncate">
-                          {group.title || 'Untitled Memory'}
+                          {htmlToDisplayText(group.title) || 'Untitled Memory'}
                         </h3>
                         
                         <div className="flex items-center gap-2">
@@ -306,10 +333,9 @@ export default function MemoryGroupManagement({ memoryGroups }: MemoryGroupManag
                       </div>
 
                       {group.description && (
-                        <div 
-                          className="text-sm text-muted-foreground mb-3 line-clamp-2 prose prose-sm"
-                          dangerouslySetInnerHTML={{ __html: group.description }}
-                        />
+                        <div className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                          {htmlToDisplayText(group.description, 200)}
+                        </div>
                       )}
 
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -692,9 +718,9 @@ export default function MemoryGroupManagement({ memoryGroups }: MemoryGroupManag
           memoryGroup={mediaEditingGroup}
           isOpen={!!mediaEditingGroup}
           onClose={() => setMediaEditingGroup(null)}
-          onUpdate={() => {
+          onUpdate={async () => {
             setMediaEditingGroup(null)
-            router.refresh()
+            await refreshMemoryGroups()
           }}
         />
       )}

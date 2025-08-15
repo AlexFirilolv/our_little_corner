@@ -30,11 +30,12 @@ import UserManagement from './UserManagement'
 
 interface EnhancedAdminDashboardProps {
   memoryGroups: MemoryGroup[]
+  refreshMemoryGroups: () => Promise<void>
 }
 
 type ActiveTab = 'upload' | 'manage' | 'locking' | 'users' | 'analytics'
 
-export default function EnhancedAdminDashboard({ memoryGroups }: EnhancedAdminDashboardProps) {
+export default function EnhancedAdminDashboard({ memoryGroups, refreshMemoryGroups }: EnhancedAdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<ActiveTab>('upload')
   const router = useRouter()
 
@@ -250,7 +251,7 @@ export default function EnhancedAdminDashboard({ memoryGroups }: EnhancedAdminDa
                   Edit existing memories, update titles and descriptions, manage individual media items.
                 </p>
               </div>
-              <MemoryGroupManagement memoryGroups={memoryGroups} />
+              <MemoryGroupManagement memoryGroups={memoryGroups} refreshMemoryGroups={refreshMemoryGroups} />
             </div>
           )}
 
@@ -262,7 +263,7 @@ export default function EnhancedAdminDashboard({ memoryGroups }: EnhancedAdminDa
                   Control visibility of memories. Lock them now and schedule automatic unlocking for special dates.
                 </p>
               </div>
-              <LockingControls memoryGroups={memoryGroups} />
+              <LockingControls memoryGroups={memoryGroups} refreshMemoryGroups={refreshMemoryGroups} />
             </div>
           )}
 

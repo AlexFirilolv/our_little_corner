@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Heart, Play, Calendar, FileText } from 'lucide-react'
 import { MediaItem } from '@/lib/types'
 import { formatDistanceToNow } from 'date-fns'
+import { htmlToDisplayText } from '@/lib/htmlUtils'
 
 interface MediaCardProps {
   media: MediaItem
@@ -93,7 +94,7 @@ export default function MediaCard({ media, onClick }: MediaCardProps) {
           {/* Title */}
           {hasTitle && (
             <h3 className="font-romantic text-lg text-primary mb-2 line-clamp-2">
-              {media.title}
+              {htmlToDisplayText(media.title)}
             </h3>
           )}
 
@@ -117,11 +118,7 @@ export default function MediaCard({ media, onClick }: MediaCardProps) {
           {/* Note preview */}
           {hasNote && (
             <div className="text-sm text-foreground/80 font-body line-clamp-3 mb-3">
-              <div 
-                dangerouslySetInnerHTML={{ 
-                  __html: (media.note || '').replace(/<[^>]*>/g, '').substring(0, 120) + '...' 
-                }} 
-              />
+              {htmlToDisplayText(media.note, 120)}
             </div>
           )}
 

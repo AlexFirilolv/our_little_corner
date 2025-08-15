@@ -17,6 +17,23 @@ export default function AdminPage() {
   const [memoryGroups, setMemoryGroups] = useState<MemoryGroup[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
+  // Refresh function to be passed to child components
+  const refreshMemoryGroups = async () => {
+    if (!currentCorner) return
+    try {
+      const response = await fetch(`/api/memory-groups?cornerId=${currentCorner.id}&includeLocked=true`, {
+        credentials: 'include',
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setMemoryGroups(data.memoryGroups || [])
+      }
+    } catch (error) {
+      console.error('Error refreshing memory groups:', error)
+    }
+  }
+
   useEffect(() => {
     if (authLoading || cornerLoading) return // Wait for auth and corner to load
 
@@ -107,5 +124,5 @@ export default function AdminPage() {
     )
   }
 
-  return <EnhancedAdminDashboard memoryGroups={memoryGroups} />
+  return <EnhancedAdminDashboard memoryGroups={memoryGroups} refreshMemoryGroups={refreshMemoryGroups} />
 }
