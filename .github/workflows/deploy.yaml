@@ -1,4 +1,4 @@
-name: Deploy to AWS
+name: Build and Deploy to AWS
 
 on:
   push:
@@ -10,38 +10,54 @@ on:
 env:
   AWS_REGION: il-central-1
   ECR_REPOSITORY: ${{ github.ref_name }}-app
-  
+
 jobs:
-  deploy:
+  build-and-deploy:
+    name: Build and Deploy
     runs-on: ubuntu-latest
     permissions:
-      id-token: write # Required for OIDC authentication
+      id-token: write # Required for OIDC
       contents: read
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-role # We'll create this role in Terraform
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-role
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
+        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build, tag, and push image to Amazon ECR
+      - name: Build, tag, and push image to ECR
         id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REPOSITORY:${{ github.sha }} .
-          docker tag $ECR_REPOSITORY:${{ github.sha }} ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:${{ github.ref_name }}
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:${{ github.ref_name }}
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      - name: Deploy to EC2 instance
+      - name: Update Launch Template and Deploy
         run: |
-          # Command to run the deployment script on the EC2 instance using SSM
-          aws ssm send-command \
-            --instance-ids ${{ secrets.EC2_INSTANCE_ID }} \
-            --document-name "AWS-RunShellScript" \
-            --parameters 'commands=["/home/ubuntu/deploy.sh"]'
+          # Get the ID of the latest launch template for the current environment
+          LAUNCH_TEMPLATE_ID=$(aws ec2 describe-launch-templates --filters "Name=tag:Name,Values=${{ github.ref_name }}-app-server" --query "LaunchTemplates[0].LaunchTemplateId" --output text)
+          
+          # Create a new version of the launch template with the new image tag
+          aws ec2 create-launch-template-version \
+            --launch-template-id $LAUNCH_TEMPLATE_ID \
+            --source-version '$Latest' \
+            --launch-template-data '{"ImageId":"${{ data.aws_ami.ubuntu.id }}", "UserData":"'$(cat terraform/user_data.sh.tpl | sed "s/\${image_tag}/${{ steps.build-image.outputs.image_tag }}/g" | base64 -w 0)'"}'
+
+          # Find the Auto Scaling Group
+          ASG_NAME=$(aws autoscaling describe-auto-scaling-groups --query "AutoScalingGroups[?Tags[?Key=='Name' && Value=='${{ github.ref_name }}-app-server']].AutoScalingGroupName" --output text)
+
+          # Trigger a rolling update
+          echo "Starting instance refresh for ASG: $ASG_NAME"
+          aws autoscaling start-instance-refresh --auto-scaling-group-name $ASG_NAME --strategy Rolling
+
