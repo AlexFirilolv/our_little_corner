@@ -71,19 +71,15 @@ resource "aws_iam_instance_profile" "instance_profile" {
 }
 
 
-# SSH Key Pair for GitHub Actions deployment
+# SSH Key Pair for GitHub Actions deployment (with unique suffix to allow replacements)
 resource "aws_key_pair" "deployment_key" {
-  key_name   = "${terraform.workspace}-deployment-key"
+  key_name   = "${terraform.workspace}-deployment-key-${substr(sha256(var.deployment_public_key), 0, 8)}"
   public_key = var.deployment_public_key
-
-  # Force replacement when key changes
-  lifecycle {
-    create_before_destroy = true
-  }
 
   tags = {
     Name        = "${terraform.workspace}-deployment-key"
     Environment = terraform.workspace
+    KeyHash     = substr(sha256(var.deployment_public_key), 0, 8)
   }
 }
 

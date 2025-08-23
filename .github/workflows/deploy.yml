@@ -127,6 +127,25 @@ jobs:
             -var="deployment_public_key=$SSH_PUBLIC_KEY" \
             -out=tfplan
 
+      - name: Clean up old SSH key pairs (if any)
+        run: |
+          # Clean up any existing deployment key pairs for this workspace
+          WORKSPACE="${{ needs.setup.outputs.terraform-env }}"
+          
+          # Delete the old generic key pair name (from previous workflow versions)
+          aws ec2 delete-key-pair --key-name "$WORKSPACE-deployment-key" 2>/dev/null || echo "No old generic key pair to delete"
+          
+          # Find and delete old deployment key pairs with hash suffixes
+          OLD_KEYS=$(aws ec2 describe-key-pairs --query "KeyPairs[?starts_with(KeyName, '$WORKSPACE-deployment-key-') && KeyName != '$WORKSPACE-deployment-key-$(echo -n "$SSH_PUBLIC_KEY" | sha256sum | cut -c1-8)'].KeyName" --output text 2>/dev/null || echo "")
+          if [ ! -z "$OLD_KEYS" ] && [ "$OLD_KEYS" != "None" ]; then
+            echo "Deleting old key pairs: $OLD_KEYS"
+            for key in $OLD_KEYS; do
+              aws ec2 delete-key-pair --key-name "$key" || echo "Failed to delete $key"
+            done
+          else
+            echo "No old hashed key pairs to clean up"
+          fi
+
       - name: Terraform Apply
         run: terraform apply tfplan
 
