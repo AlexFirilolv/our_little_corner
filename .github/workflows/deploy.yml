@@ -166,16 +166,31 @@ jobs:
           
           INSTANCE_IP="${{ needs.deploy.outputs.instance_ip }}"
           
-          # Wait for EC2 instance to be ready with proper SSH validation
-          echo "Waiting for EC2 instance to be ready..."
-          for i in {1..30}; do
-            if timeout 10 ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i deployment_key ubuntu@$INSTANCE_IP "sudo docker --version" 2>/dev/null; then
-              echo "✅ EC2 instance is ready!"
+          # First, wait for SSH to be available
+          echo "🔌 Waiting for SSH to be available..."
+          for i in {1..20}; do
+            if timeout 10 ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i deployment_key ubuntu@$INSTANCE_IP "echo 'SSH available'" 2>/dev/null; then
+              echo "✅ SSH is available!"
               break
             fi
-            echo "⏳ Waiting for EC2 instance... (attempt $i/30)"
+            echo "⏳ Waiting for SSH... (attempt $i/20)"
+            sleep 15
+          done
+          
+          # Then wait for Docker to be ready
+          echo "🐳 Waiting for Docker to be ready..."
+          for i in {1..15}; do
+            if timeout 10 ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i deployment_key ubuntu@$INSTANCE_IP "sudo docker --version" 2>/dev/null; then
+              echo "✅ Docker is ready!"
+              break
+            fi
+            echo "⏳ Waiting for Docker... (attempt $i/15)"
             sleep 10
           done
+          
+          # Final check - verify user-data script completion
+          echo "📋 Checking user-data script completion..."
+          ssh -o StrictHostKeyChecking=no -i deployment_key ubuntu@$INSTANCE_IP "sudo tail -10 /var/log/user-data.log || echo 'User-data log not found'"
 
       - name: Deploy application via SSH
         run: |
