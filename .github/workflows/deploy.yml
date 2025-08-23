@@ -25,10 +25,14 @@ jobs:
       image-tag: ${{ steps.set-env.outputs.image-tag }}
     steps:
       - name: Set environment variables
-        id: set-envCTWh
+        id: set-env
         run: |
           # Convert GitHub Environment name to lowercase for Terraform workspace
           ENV_LOWER=$(echo "${{ github.event.inputs.environment }}" | tr '[:upper:]' '[:lower:]')
+          
+          echo "Input environment: ${{ github.event.inputs.environment }}"
+          echo "Lowercase env: $ENV_LOWER"
+          echo "GitHub SHA: ${{ github.sha }}"
           
           echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
           echo "terraform-env=$ENV_LOWER" >> $GITHUB_OUTPUT
@@ -40,6 +44,12 @@ jobs:
     needs: setup
     environment: ${{ needs.setup.outputs.environment }}
     steps:
+      - name: Debug environment info
+        run: |
+          echo "Environment: ${{ needs.setup.outputs.environment }}"
+          echo "Terraform env: ${{ needs.setup.outputs.terraform-env }}"
+          echo "Image tag: ${{ needs.setup.outputs.image-tag }}"
+          
       - name: Checkout code
         uses: actions/checkout@v4
 
