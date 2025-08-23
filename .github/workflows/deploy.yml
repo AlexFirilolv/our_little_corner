@@ -158,51 +158,48 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Prepare SSH key and wait for EC2
+      - name: Deploy application via SSH  
         run: |
           # Decode and create SSH private key file
           echo "${{ needs.deploy.outputs.ssh_private_key_b64 }}" | base64 -d > deployment_key
           chmod 600 deployment_key
           
           INSTANCE_IP="${{ needs.deploy.outputs.instance_ip }}"
-          
-          # First, wait for SSH to be available
-          echo "🔌 Waiting for SSH to be available..."
-          for i in {1..20}; do
-            if timeout 10 ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i deployment_key ubuntu@$INSTANCE_IP "echo 'SSH available'" 2>/dev/null; then
-              echo "✅ SSH is available!"
-              break
-            fi
-            echo "⏳ Waiting for SSH... (attempt $i/20)"
-            sleep 15
-          done
-          
-          # Then wait for Docker to be ready
-          echo "🐳 Waiting for Docker to be ready..."
-          for i in {1..15}; do
-            if timeout 10 ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i deployment_key ubuntu@$INSTANCE_IP "sudo docker --version" 2>/dev/null; then
-              echo "✅ Docker is ready!"
-              break
-            fi
-            echo "⏳ Waiting for Docker... (attempt $i/15)"
-            sleep 10
-          done
-          
-          # Final check - verify user-data script completion
-          echo "📋 Checking user-data script completion..."
-          ssh -o StrictHostKeyChecking=no -i deployment_key ubuntu@$INSTANCE_IP "sudo tail -10 /var/log/user-data.log || echo 'User-data log not found'"
-
-      - name: Deploy application via SSH
-        run: |
-          INSTANCE_IP="${{ needs.deploy.outputs.instance_ip }}"
           ECR_REPO="${{ needs.deploy.outputs.ecr_repo_url }}"
           IMAGE_TAG="${{ needs.setup.outputs.image-tag }}"
           
-          echo "Deploying to $INSTANCE_IP"
+          # Get instance ID for status checks
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=ip-address,Values=$INSTANCE_IP" \
+            --query "Reservations[0].Instances[0].InstanceId" \
+            --output text)
           
-          # Test SSH connection first
-          echo "Testing SSH connection..."
-          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i deployment_key ubuntu@$INSTANCE_IP "echo 'SSH connection successful'"
+          echo "🔌 Deploying to instance $INSTANCE_ID at $INSTANCE_IP"
+          
+          # Wait for instance to be running
+          echo "⏳ Waiting for EC2 instance to be running..."
+          aws ec2 wait instance-running --instance-ids $INSTANCE_ID
+          
+          # Wait for SSH and Docker to be ready with better error handling
+          echo "🐳 Waiting for SSH and Docker to be ready..."
+          for i in {1..20}; do
+            if timeout 15 ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i deployment_key ubuntu@$INSTANCE_IP "sudo docker --version" 2>/dev/null; then
+              echo "✅ SSH and Docker are ready!"
+              break
+            fi
+            if [ $i -eq 20 ]; then
+              echo "❌ Failed to connect after 20 attempts. Checking instance status..."
+              aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[0].Instances[0].[State.Name,StateReason.Message]" --output text
+              exit 1
+            fi
+            echo "⏳ Waiting for SSH and Docker... (attempt $i/20)"
+            sleep 15
+          done
+          
+          echo "📋 Checking instance readiness..."
+          ssh -o StrictHostKeyChecking=no -i deployment_key ubuntu@$INSTANCE_IP "sudo tail -5 /var/log/user-data.log || echo 'Instance ready for deployment'"
+          
+          echo "🚀 Starting deployment"
           
           # SSH and deploy
           ssh -o StrictHostKeyChecking=no -i deployment_key ubuntu@$INSTANCE_IP << EOF

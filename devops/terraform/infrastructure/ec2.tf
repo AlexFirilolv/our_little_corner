@@ -76,6 +76,11 @@ resource "aws_key_pair" "deployment_key" {
   key_name   = "${terraform.workspace}-deployment-key"
   public_key = var.deployment_public_key
 
+  # Force replacement when key changes
+  lifecycle {
+    create_before_destroy = true
+  }
+
   tags = {
     Name        = "${terraform.workspace}-deployment-key"
     Environment = terraform.workspace
