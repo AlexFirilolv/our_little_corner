@@ -132,7 +132,18 @@ jobs:
     runs-on: ubuntu-latest
     needs: [setup, deploy]
     environment: ${{ needs.setup.outputs.environment }}
+    defaults:
+      run:
+        working-directory: devops/terraform/infrastructure
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "latest"
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -145,8 +156,6 @@ jobs:
 
       - name: Get instance info and test
         run: |
-          cd devops/terraform/infrastructure
-          
           # Initialize terraform in this context
           terraform init
           terraform workspace select ${{ needs.setup.outputs.terraform-env }}
