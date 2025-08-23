@@ -22,6 +22,15 @@ resource "aws_security_group" "instance_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # Allow SSH from anywhere (for GitHub Actions deployment)
+  ingress {
+    description = "SSH from anywhere"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   # Allow outbound traffic for updates, ECR pulls, etc.
   egress {
     from_port   = 0
