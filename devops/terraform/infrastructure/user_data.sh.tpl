@@ -9,7 +9,7 @@ echo "Starting user data script..."
 
 # --- Install dependencies ---
 apt-get update -y
-apt-get install -y docker.io ec2-instance-connect awscli
+apt-get install -y docker.io ec2-instance-connect awscli jq
 
 # --- Start and enable Docker ---
 systemctl start docker
