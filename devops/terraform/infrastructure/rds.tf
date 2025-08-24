@@ -219,7 +219,7 @@ resource "null_resource" "db_initialization" {
     db_endpoint = aws_db_instance.postgres.endpoint
   }
 
-  # Initialize database schema using psql
+  # Initialize database schema using Docker with PostgreSQL client
   provisioner "local-exec" {
     command = <<-EOF
       # Wait for RDS instance to be available
@@ -232,19 +232,25 @@ resource "null_resource" "db_initialization" {
       DB_PASSWORD=$(echo $DB_SECRETS | jq -r .password)
       DB_NAME=$(echo $DB_SECRETS | jq -r .dbname)
       
-      # Set PGPASSWORD for psql
-      export PGPASSWORD="$DB_PASSWORD"
+      echo "Checking database connectivity and initializing schema if needed..."
       
-      # Check if schema is already initialized
-      TABLES_COUNT=$(psql -h "$DB_HOST" -U postgres -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
-      
-      if [ "$TABLES_COUNT" -eq "0" ]; then
-        echo "Initializing database schema..."
-        psql -h "$DB_HOST" -U postgres -d "$DB_NAME" -f "${path.module}/../../../database/multi-tenant-schema.sql"
-        echo "Database schema initialized successfully"
-      else
-        echo "Database schema already exists, skipping initialization"
-      fi
+      # Use Docker with PostgreSQL client to run schema initialization
+      docker run --rm \
+        -e PGPASSWORD="$DB_PASSWORD" \
+        -v "${path.module}/../../../database:/sql" \
+        postgres:15-alpine \
+        sh -c "
+          # Check if schema is already initialized
+          TABLES_COUNT=\$(psql -h '$DB_HOST' -U postgres -d '$DB_NAME' -t -c \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';\" 2>/dev/null | tr -d ' ' || echo '0')
+          
+          if [ \"\$TABLES_COUNT\" = '0' ]; then
+            echo 'Initializing database schema...'
+            psql -h '$DB_HOST' -U postgres -d '$DB_NAME' -f /sql/multi-tenant-schema.sql
+            echo 'Database schema initialized successfully'
+          else
+            echo 'Database schema already exists (found '\$TABLES_COUNT' tables), skipping initialization'
+          fi
+        "
     EOF
   }
 }

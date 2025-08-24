@@ -224,20 +224,21 @@ jobs:
           echo "📋 Checking instance readiness..."
           ssh -o StrictHostKeyChecking=no -i deployment_key ubuntu@$INSTANCE_IP "sudo tail -5 /var/log/user-data.log || echo 'Instance ready for deployment'"
           
-          echo "🔐 Getting database credentials from AWS Secrets Manager..."
-          DB_SECRETS=$(aws secretsmanager get-secret-value --secret-id "${{ needs.deploy.outputs.secrets_manager_secret_name }}" --region ${{ env.AWS_REGION }} --query SecretString --output text)
-          DB_PASSWORD=$(echo "$DB_SECRETS" | jq -r .password)
-          DATABASE_URL="postgresql://postgres:$DB_PASSWORD@${{ needs.deploy.outputs.rds_endpoint }}:5432/${{ needs.deploy.outputs.rds_database_name }}"
-          
           echo "🚀 Starting deployment"
           
           # SSH and deploy
-          ssh -o StrictHostKeyChecking=no -i deployment_key ubuntu@$INSTANCE_IP << EOF
+          ssh -o StrictHostKeyChecking=no -i deployment_key ubuntu@$INSTANCE_IP << 'EOF'
             set -e
             
             # Stop and remove existing container if it exists
             sudo docker stop our-little-corner-app || true
             sudo docker rm our-little-corner-app || true
+            
+            # Get database credentials from AWS Secrets Manager on the EC2 instance
+            echo "🔐 Getting database credentials from AWS Secrets Manager..."
+            DB_SECRETS=$(aws secretsmanager get-secret-value --secret-id ${{ needs.deploy.outputs.secrets_manager_secret_name }} --region ${{ env.AWS_REGION }} --query SecretString --output text)
+            DB_PASSWORD=$(echo "$DB_SECRETS" | jq -r .password)
+            DATABASE_URL="postgresql://postgres:$DB_PASSWORD@${{ needs.deploy.outputs.rds_endpoint }}:5432/${{ needs.deploy.outputs.rds_database_name }}"
             
             # Login to ECR
             aws ecr get-login-password --region ${{ env.AWS_REGION }} | sudo docker login --username AWS --password-stdin $ECR_REPO
