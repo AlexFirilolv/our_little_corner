@@ -15,6 +15,21 @@ apt-get install -y docker.io ec2-instance-connect awscli jq
 systemctl start docker
 systemctl enable docker
 usermod -aG docker ubuntu
+
+# Wait for Docker daemon to be ready
+echo "Waiting for Docker daemon to be ready..."
+for i in {1..30}; do
+    if docker info >/dev/null 2>&1; then
+        echo "Docker daemon is ready"
+        break
+    fi
+    if [ $i -eq 30 ]; then
+        echo "Docker daemon failed to start properly"
+        exit 1
+    fi
+    sleep 2
+done
+
 echo "Docker installed and configured."
 
 # --- ECR Login (for future deployments) ---
