@@ -64,8 +64,9 @@ resource "aws_db_parameter_group" "postgres_params" {
 resource "random_password" "db_password" {
   length  = 32
   special = true
-  # Exclude characters that are not allowed in RDS passwords
-  override_special = "!#$%&*()-_=+[]{}<>:?"
+  # Use only characters that are guaranteed safe for RDS passwords
+  # Excludes: /, @, ", space, and other potentially problematic characters
+  override_special = "!#$%&*()_+-=[]{}:.<>?"
   
   lifecycle {
     ignore_changes = [override_special]
