@@ -234,29 +234,27 @@ resource "null_resource" "db_initialization" {
     db_endpoint = aws_db_instance.postgres.endpoint
   }
 
-  # Initialize database schema using PowerShell (Windows compatible)
+  # Initialize database schema using Bash (Linux/GitHub Actions compatible)
   provisioner "local-exec" {
-    interpreter = ["powershell", "-Command"]
     command = <<-EOF
-      Write-Host "Waiting for RDS instance to be ready..."
+      echo "Waiting for RDS instance to be ready..."
       aws rds wait db-instance-available --db-instance-identifier ${aws_db_instance.postgres.identifier} --region ${var.aws_region}
       
-      Write-Host "Getting database credentials from secrets manager..."
-      $DB_SECRETS = aws secretsmanager get-secret-value --secret-id ${aws_secretsmanager_secret.db_credentials.name} --region ${var.aws_region} --query SecretString --output text | ConvertFrom-Json
-      $DB_HOST = $DB_SECRETS.host
-      $DB_PASSWORD = $DB_SECRETS.password
-      $DB_NAME = $DB_SECRETS.dbname
+      echo "Getting database credentials from secrets manager..."
+      DB_SECRETS=$(aws secretsmanager get-secret-value --secret-id ${aws_secretsmanager_secret.db_credentials.name} --region ${var.aws_region} --query SecretString --output text)
+      DB_HOST=$(echo "$DB_SECRETS" | jq -r .host)
+      DB_PASSWORD=$(echo "$DB_SECRETS" | jq -r .password)  
+      DB_NAME=$(echo "$DB_SECRETS" | jq -r .dbname)
       
-      Write-Host "Checking database connectivity and initializing schema if needed..."
+      echo "Checking database connectivity and initializing schema if needed..."
       
       # Use Docker with PostgreSQL client to run schema initialization
-      $DatabasePath = "${replace(path.module, "\\", "/")}/../../../database"
-      $DatabasePath = $DatabasePath -replace '^\.\.', (Get-Location).Path -replace '\\','/'
-      docker run --rm `
-        -e PGPASSWORD="$DB_PASSWORD" `
-        -v "$DatabasePath":/sql `
-        postgres:15-alpine `
-        sh -c "TABLES_COUNT=`$(psql -h '$DB_HOST' -U postgres -d '$DB_NAME' -t -c 'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ''public'';' 2>/dev/null | tr -d ' ' || echo '0'); if [ '`$TABLES_COUNT' = '0' ]; then echo 'Initializing database schema...'; psql -h '$DB_HOST' -U postgres -d '$DB_NAME' -f /sql/multi-tenant-schema.sql; echo 'Database schema initialized successfully'; else echo 'Database schema already exists (found '`$TABLES_COUNT' tables), skipping initialization'; fi"
+      DATABASE_PATH="${path.module}/../../../database"
+      docker run --rm \
+        -e PGPASSWORD="$DB_PASSWORD" \
+        -v "$DATABASE_PATH":/sql \
+        postgres:15-alpine \
+        sh -c "TABLES_COUNT=\$(psql -h '$DB_HOST' -U postgres -d '$DB_NAME' -t -c 'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '\''public'\'';' 2>/dev/null | tr -d ' ' || echo '0'); if [ '\$TABLES_COUNT' = '0' ]; then echo 'Initializing database schema...'; psql -h '$DB_HOST' -U postgres -d '$DB_NAME' -f /sql/multi-tenant-schema.sql; echo 'Database schema initialized successfully'; else echo 'Database schema already exists (found '\$TABLES_COUNT' tables), skipping initialization'; fi"
     EOF
   }
 }
