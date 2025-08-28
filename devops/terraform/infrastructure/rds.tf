@@ -1,11 +1,6 @@
 # RDS PostgreSQL Configuration for "Our Little Corner"
 # This file manages the PostgreSQL RDS instances for multi-tenant architecture
 
-# Get availability zones for the current region
-data "aws_availability_zones" "available" {
-  state = "available"
-}
-
 # DB Subnet Group for RDS - spans multiple AZs for high availability
 resource "aws_db_subnet_group" "rds_subnet_group" {
   name       = "${terraform.workspace}-rds-subnet-group"
@@ -17,10 +12,19 @@ resource "aws_db_subnet_group" "rds_subnet_group" {
   }
 }
 
+# Data source to get the latest supported PostgreSQL version
+data "aws_rds_engine_version" "postgres" {
+  engine                 = "postgres"
+  preferred_versions     = ["15.8", "15.7", "15.6", "15.5", "15.4"]
+  default_only          = false
+  latest                = true
+  parameter_group_family = "postgres15"
+}
+
 # DB Parameter Group for PostgreSQL optimization
 resource "aws_db_parameter_group" "postgres_params" {
-  family = "postgres15"
-  name   = "${terraform.workspace}-postgres15-params"
+  family = data.aws_rds_engine_version.postgres.parameter_group_family
+  name   = "${terraform.workspace}-postgres-params"
 
   parameter {
     name         = "shared_preload_libraries"
@@ -46,6 +50,10 @@ resource "aws_db_parameter_group" "postgres_params" {
     apply_method = "pending-reboot"  # Static parameter requires restart
   }
 
+  lifecycle {
+    create_before_destroy = true
+  }
+
   tags = {
     Name        = "${terraform.workspace}-postgres15-params"
     Environment = terraform.workspace
@@ -56,6 +64,12 @@ resource "aws_db_parameter_group" "postgres_params" {
 resource "random_password" "db_password" {
   length  = 32
   special = true
+  # Exclude characters that are not allowed in RDS passwords
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+  
+  lifecycle {
+    ignore_changes = [override_special]
+  }
 }
 
 # AWS Secrets Manager secret for database credentials
@@ -85,9 +99,9 @@ resource "aws_secretsmanager_secret_version" "db_credentials" {
 resource "aws_db_instance" "postgres" {
   identifier = "${terraform.workspace}-our-little-corner-db"
   
-  # Engine configuration
-  engine         = "postgres"
-  engine_version = "15"  # Use latest available PostgreSQL 15 minor version
+  # Engine configuration - use data source to get compatible version
+  engine         = data.aws_rds_engine_version.postgres.engine
+  engine_version = data.aws_rds_engine_version.postgres.version
   instance_class = var.db_instance_class
   
   # Database configuration
@@ -219,38 +233,29 @@ resource "null_resource" "db_initialization" {
     db_endpoint = aws_db_instance.postgres.endpoint
   }
 
-  # Initialize database schema using Docker with PostgreSQL client
+  # Initialize database schema using PowerShell (Windows compatible)
   provisioner "local-exec" {
+    interpreter = ["powershell", "-Command"]
     command = <<-EOF
-      # Wait for RDS instance to be available
-      echo "Waiting for RDS instance to be ready..."
+      Write-Host "Waiting for RDS instance to be ready..."
       aws rds wait db-instance-available --db-instance-identifier ${aws_db_instance.postgres.identifier} --region ${var.aws_region}
       
-      # Get database credentials from secrets manager
-      DB_SECRETS=$(aws secretsmanager get-secret-value --secret-id ${aws_secretsmanager_secret.db_credentials.name} --region ${var.aws_region} --query SecretString --output text)
-      DB_HOST=$(echo $DB_SECRETS | jq -r .host)
-      DB_PASSWORD=$(echo $DB_SECRETS | jq -r .password)
-      DB_NAME=$(echo $DB_SECRETS | jq -r .dbname)
+      Write-Host "Getting database credentials from secrets manager..."
+      $DB_SECRETS = aws secretsmanager get-secret-value --secret-id ${aws_secretsmanager_secret.db_credentials.name} --region ${var.aws_region} --query SecretString --output text | ConvertFrom-Json
+      $DB_HOST = $DB_SECRETS.host
+      $DB_PASSWORD = $DB_SECRETS.password
+      $DB_NAME = $DB_SECRETS.dbname
       
-      echo "Checking database connectivity and initializing schema if needed..."
+      Write-Host "Checking database connectivity and initializing schema if needed..."
       
       # Use Docker with PostgreSQL client to run schema initialization
-      docker run --rm \
-        -e PGPASSWORD="$DB_PASSWORD" \
-        -v "${path.module}/../../../database:/sql" \
-        postgres:15-alpine \
-        sh -c "
-          # Check if schema is already initialized
-          TABLES_COUNT=\$(psql -h '$DB_HOST' -U postgres -d '$DB_NAME' -t -c \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';\" 2>/dev/null | tr -d ' ' || echo '0')
-          
-          if [ \"\$TABLES_COUNT\" = '0' ]; then
-            echo 'Initializing database schema...'
-            psql -h '$DB_HOST' -U postgres -d '$DB_NAME' -f /sql/multi-tenant-schema.sql
-            echo 'Database schema initialized successfully'
-          else
-            echo 'Database schema already exists (found '\$TABLES_COUNT' tables), skipping initialization'
-          fi
-        "
+      $DatabasePath = "${replace(path.module, "\\", "/")}/../../../database"
+      $DatabasePath = $DatabasePath -replace '^\.\.', (Get-Location).Path -replace '\\','/'
+      docker run --rm `
+        -e PGPASSWORD="$DB_PASSWORD" `
+        -v "$DatabasePath":/sql `
+        postgres:15-alpine `
+        sh -c "TABLES_COUNT=`$(psql -h '$DB_HOST' -U postgres -d '$DB_NAME' -t -c 'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ''public'';' 2>/dev/null | tr -d ' ' || echo '0'); if [ '`$TABLES_COUNT' = '0' ]; then echo 'Initializing database schema...'; psql -h '$DB_HOST' -U postgres -d '$DB_NAME' -f /sql/multi-tenant-schema.sql; echo 'Database schema initialized successfully'; else echo 'Database schema already exists (found '`$TABLES_COUNT' tables), skipping initialization'; fi"
     EOF
   }
 }
