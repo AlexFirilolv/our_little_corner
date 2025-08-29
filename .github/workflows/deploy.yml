@@ -239,13 +239,41 @@ jobs:
           
           echo "🚀 Starting deployment"
           
+          # Set variables for SSH session
+          ECR_REPO="${{ needs.deploy.outputs.ecr_repo_url }}"
+          IMAGE_TAG="${{ needs.setup.outputs.image-tag }}"
+          SECRETS_MANAGER_SECRET_NAME="${{ needs.deploy.outputs.secrets_manager_secret_name }}"
+          AWS_REGION="${{ env.AWS_REGION }}"
+          RDS_ENDPOINT="${{ needs.deploy.outputs.rds_endpoint }}"
+          RDS_DATABASE_NAME="${{ needs.deploy.outputs.rds_database_name }}"
+          INSTANCE_IP="${{ needs.deploy.outputs.instance_ip }}"
+          
+          # Set secret environment variables for container
+          APP_PASSWORD="${{ secrets.APP_PASSWORD }}"
+          JWT_SECRET="${{ secrets.JWT_SECRET }}"
+          NEXTAUTH_SECRET="${{ secrets.NEXTAUTH_SECRET }}"
+          AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+          AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+          S3_BUCKET_NAME="${{ secrets.S3_BUCKET_NAME }}"
+          NEXT_PUBLIC_FIREBASE_API_KEY="${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}"
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}"
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID="${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}"
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}"
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}"
+          NEXT_PUBLIC_FIREBASE_APP_ID="${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}"
+          FIREBASE_ADMIN_PROJECT_ID="${{ secrets.FIREBASE_ADMIN_PROJECT_ID }}"
+          FIREBASE_ADMIN_CLIENT_EMAIL="${{ secrets.FIREBASE_ADMIN_CLIENT_EMAIL }}"
+          FIREBASE_ADMIN_PRIVATE_KEY="${{ secrets.FIREBASE_ADMIN_PRIVATE_KEY }}"
+          NEXTAUTH_URL="http://${{ needs.deploy.outputs.instance_ip }}"
+          NEXT_PUBLIC_APP_URL="http://${{ needs.deploy.outputs.instance_ip }}"
+          
           # SSH and deploy
-          ssh -o StrictHostKeyChecking=no -i deployment_key ubuntu@$INSTANCE_IP << 'DEPLOY_EOF'
+          ssh -o StrictHostKeyChecking=no -i deployment_key ubuntu@$INSTANCE_IP << DEPLOY_EOF
             set -e
             
-            # Set ECR repository URL and image tag
-            ECR_REPO="${{ needs.deploy.outputs.ecr_repo_url }}"
-            IMAGE_TAG="${{ needs.setup.outputs.image-tag }}"
+            # Set ECR repository URL and image tag  
+            ECR_REPO="$ECR_REPO"
+            IMAGE_TAG="$IMAGE_TAG"
             
             echo "🐳 Deploying image: $ECR_REPO:$IMAGE_TAG"
             
@@ -272,7 +300,7 @@ jobs:
             while [ $retry_count -lt $max_retries ]; do
               echo "Attempting to retrieve secrets (attempt $((retry_count + 1))/$max_retries)..."
               
-              if DB_SECRETS=$(aws secretsmanager get-secret-value --secret-id ${{ needs.deploy.outputs.secrets_manager_secret_name }} --region ${{ env.AWS_REGION }} --query SecretString --output text 2>&1); then
+              if DB_SECRETS=$(aws secretsmanager get-secret-value --secret-id ${SECRETS_MANAGER_SECRET_NAME} --region ${AWS_REGION} --query SecretString --output text 2>&1); then
                 echo "✅ Successfully retrieved database credentials"
                 break
               else
@@ -311,7 +339,7 @@ jobs:
               exit 1
             fi
             
-            DATABASE_URL="postgresql://postgres:$DB_PASSWORD@${{ needs.deploy.outputs.rds_endpoint }}/${{ needs.deploy.outputs.rds_database_name }}"
+            DATABASE_URL="postgresql://postgres:$DB_PASSWORD@${RDS_ENDPOINT}/${RDS_DATABASE_NAME}"
             echo "✅ Database connection string configured successfully"
             
             # Extract ECR registry URL for login (remove repository name and tag)
@@ -319,7 +347,7 @@ jobs:
             
             # Login to ECR
             echo "🔑 Logging into ECR registry: $ECR_REGISTRY"
-            aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin $ECR_REGISTRY
+            aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin $ECR_REGISTRY
             
             # Pull latest image
             echo "📥 Pulling Docker image: $ECR_REPO:$IMAGE_TAG"
@@ -333,24 +361,24 @@ jobs:
               --restart unless-stopped \
               -e NODE_ENV=production \
               -e DATABASE_URL="$DATABASE_URL" \
-              -e APP_PASSWORD="${{ secrets.APP_PASSWORD }}" \
-              -e JWT_SECRET="${{ secrets.JWT_SECRET }}" \
-              -e NEXTAUTH_SECRET="${{ secrets.NEXTAUTH_SECRET }}" \
-              -e AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
-              -e AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
-              -e AWS_REGION="${{ env.AWS_REGION }}" \
-              -e S3_BUCKET_NAME="${{ secrets.S3_BUCKET_NAME }}" \
-              -e NEXT_PUBLIC_FIREBASE_API_KEY="${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}" \
-              -e NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}" \
-              -e NEXT_PUBLIC_FIREBASE_PROJECT_ID="${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}" \
-              -e NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}" \
-              -e NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}" \
-              -e NEXT_PUBLIC_FIREBASE_APP_ID="${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}" \
-              -e FIREBASE_ADMIN_PROJECT_ID="${{ secrets.FIREBASE_ADMIN_PROJECT_ID }}" \
-              -e FIREBASE_ADMIN_CLIENT_EMAIL="${{ secrets.FIREBASE_ADMIN_CLIENT_EMAIL }}" \
-              -e FIREBASE_ADMIN_PRIVATE_KEY="${{ secrets.FIREBASE_ADMIN_PRIVATE_KEY }}" \
-              -e NEXTAUTH_URL="http://${{ needs.deploy.outputs.instance_ip }}" \
-              -e NEXT_PUBLIC_APP_URL="http://${{ needs.deploy.outputs.instance_ip }}" \
+              -e APP_PASSWORD="$APP_PASSWORD" \
+              -e JWT_SECRET="$JWT_SECRET" \
+              -e NEXTAUTH_SECRET="$NEXTAUTH_SECRET" \
+              -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+              -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+              -e AWS_REGION="$AWS_REGION" \
+              -e S3_BUCKET_NAME="$S3_BUCKET_NAME" \
+              -e NEXT_PUBLIC_FIREBASE_API_KEY="$NEXT_PUBLIC_FIREBASE_API_KEY" \
+              -e NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="$NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN" \
+              -e NEXT_PUBLIC_FIREBASE_PROJECT_ID="$NEXT_PUBLIC_FIREBASE_PROJECT_ID" \
+              -e NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="$NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET" \
+              -e NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="$NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID" \
+              -e NEXT_PUBLIC_FIREBASE_APP_ID="$NEXT_PUBLIC_FIREBASE_APP_ID" \
+              -e FIREBASE_ADMIN_PROJECT_ID="$FIREBASE_ADMIN_PROJECT_ID" \
+              -e FIREBASE_ADMIN_CLIENT_EMAIL="$FIREBASE_ADMIN_CLIENT_EMAIL" \
+              -e FIREBASE_ADMIN_PRIVATE_KEY="$FIREBASE_ADMIN_PRIVATE_KEY" \
+              -e NEXTAUTH_URL="$NEXTAUTH_URL" \
+              -e NEXT_PUBLIC_APP_URL="$NEXT_PUBLIC_APP_URL" \
               $ECR_REPO:$IMAGE_TAG
               
             echo "✅ Container started successfully"
