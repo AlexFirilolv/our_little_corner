@@ -77,3 +77,19 @@ output "rds_security_group_id" {
   description = "The security group ID for the RDS instance"
   value       = aws_security_group.rds_sg.id
 }
+
+# Monitoring Outputs
+output "cloudwatch_dashboard_url" {
+  description = "The URL to the CloudWatch dashboard"
+  value       = "https://${var.aws_region}.console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${aws_cloudwatch_dashboard.main.dashboard_name}"
+}
+
+output "ec2_log_group" {
+  description = "The name of the CloudWatch log group for EC2 logs"
+  value       = aws_cloudwatch_log_group.ec2_logs.name
+}
+
+output "app_log_group" {
+  description = "The name of the CloudWatch log group for application logs"
+  value       = aws_cloudwatch_log_group.app_logs.name
+}

@@ -248,20 +248,58 @@ jobs:
             docker stop our-little-corner-app || true
             docker rm our-little-corner-app || true
             
-            # Get database credentials from AWS Secrets Manager on the EC2 instance
+            # Get database credentials from AWS Secrets Manager on the EC2 instance with retry logic
             echo "🔐 Getting database credentials from AWS Secrets Manager..."
-            DB_SECRETS=$(aws secretsmanager get-secret-value --secret-id ${{ needs.deploy.outputs.secrets_manager_secret_name }} --region ${{ env.AWS_REGION }} --query SecretString --output text)
             
-            # Check if jq is available, if not use python as fallback
+            # Retry logic for secrets retrieval
+            max_retries=3
+            retry_count=0
+            DB_SECRETS=""
+            
+            while [ $retry_count -lt $max_retries ]; do
+              echo "Attempting to retrieve secrets (attempt $((retry_count + 1))/$max_retries)..."
+              
+              if DB_SECRETS=$(aws secretsmanager get-secret-value --secret-id ${{ needs.deploy.outputs.secrets_manager_secret_name }} --region ${{ env.AWS_REGION }} --query SecretString --output text 2>&1); then
+                echo "✅ Successfully retrieved database credentials"
+                break
+              else
+                echo "❌ Failed to retrieve secrets: $DB_SECRETS"
+                retry_count=$((retry_count + 1))
+                if [ $retry_count -lt $max_retries ]; then
+                  echo "Retrying in 5 seconds..."
+                  sleep 5
+                fi
+              fi
+            done
+            
+            if [ -z "$DB_SECRETS" ] || [ $retry_count -eq $max_retries ]; then
+              echo "❌ Failed to retrieve database credentials after $max_retries attempts"
+              exit 1
+            fi
+            
+            # Parse credentials with error handling
             if command -v jq >/dev/null 2>&1; then
               echo "Using jq to parse credentials"
-              DB_PASSWORD=$(echo "$DB_SECRETS" | jq -r .password)
+              if ! DB_PASSWORD=$(echo "$DB_SECRETS" | jq -r .password); then
+                echo "❌ Failed to parse password with jq"
+                exit 1
+              fi
             else
               echo "jq not found, using python as fallback"
-              DB_PASSWORD=$(echo "$DB_SECRETS" | python3 -c "import sys, json; print(json.load(sys.stdin)['password'])")
+              if ! DB_PASSWORD=$(echo "$DB_SECRETS" | python3 -c "import sys, json; print(json.load(sys.stdin)['password'])" 2>/dev/null); then
+                echo "❌ Failed to parse password with python"
+                exit 1
+              fi
+            fi
+            
+            # Validate password was extracted
+            if [ -z "$DB_PASSWORD" ] || [ "$DB_PASSWORD" = "null" ]; then
+              echo "❌ Database password is empty or null"
+              exit 1
             fi
             
             DATABASE_URL="postgresql://postgres:$DB_PASSWORD@${{ needs.deploy.outputs.rds_endpoint }}/${{ needs.deploy.outputs.rds_database_name }}"
+            echo "✅ Database connection string configured successfully"
             
             # Extract ECR registry URL for login (remove repository name and tag)
             ECR_REGISTRY=$(echo $ECR_REPO | cut -d'/' -f1)
@@ -314,26 +352,78 @@ DEPLOY_EOF
           INSTANCE_IP="${{ needs.deploy.outputs.instance_ip }}"
           echo "Testing deployment at http://$INSTANCE_IP"
           
-          # Wait for the application to be ready (up to 5 minutes)
-          for i in {1..30}; do
-            if curl -f -s "http://$INSTANCE_IP/api/health" > /dev/null; then
+          # Function to check if application is responding
+          check_health() {
+            local response=$(curl -s -w "%{http_code}" "http://$INSTANCE_IP/api/health" -o /tmp/health_response.txt)
+            local status_code="${response: -3}"
+            
+            if [ "$status_code" = "200" ]; then
+              return 0
+            else
+              echo "Health check failed with status: $status_code"
+              if [ -f /tmp/health_response.txt ]; then
+                echo "Response body: $(cat /tmp/health_response.txt)"
+              fi
+              return 1
+            fi
+          }
+          
+          # Wait for the application to be ready (up to 8 minutes with exponential backoff)
+          max_attempts=30
+          attempt=1
+          wait_time=5
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "🔍 Health check attempt $attempt/$max_attempts..."
+            
+            if check_health; then
               echo "✅ Application is healthy!"
               break
             fi
-            echo "⏳ Waiting for application... (attempt $i/30)"
-            sleep 10
+            
+            if [ $attempt -eq $max_attempts ]; then
+              echo "❌ Maximum attempts reached. Application failed to become healthy."
+              echo "📋 Checking container status on remote instance..."
+              ssh -o StrictHostKeyChecking=no -i deployment_key ubuntu@$INSTANCE_IP "docker ps -a && docker logs our-little-corner-app --tail=50" || true
+              echo "## Deployment Results" >> $GITHUB_STEP_SUMMARY
+              echo "❌ **Application Status**: Failed after $max_attempts attempts" >> $GITHUB_STEP_SUMMARY
+              echo "⏱️ **Total Wait Time**: $((max_attempts * wait_time / 60)) minutes" >> $GITHUB_STEP_SUMMARY
+              exit 1
+            fi
+            
+            echo "⏳ Waiting ${wait_time}s before next attempt..."
+            sleep $wait_time
+            
+            # Exponential backoff: increase wait time, but cap at 30 seconds
+            wait_time=$((wait_time < 30 ? wait_time + 2 : 30))
+            attempt=$((attempt + 1))
           done
           
-          # Final health check
-          if curl -f -s "http://$INSTANCE_IP/api/health"; then
-            echo "🎉 Deployment successful!"
-            echo "Application is available at: http://$INSTANCE_IP"
-            echo "## Deployment Results" >> $GITHUB_STEP_SUMMARY
-            echo "✅ **Application Status**: Healthy" >> $GITHUB_STEP_SUMMARY
-            echo "🌐 **Application URL**: http://$INSTANCE_IP" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ Health check failed"
-            echo "## Deployment Results" >> $GITHUB_STEP_SUMMARY
-            echo "❌ **Application Status**: Failed" >> $GITHUB_STEP_SUMMARY
+          # Enhanced final verification with multiple endpoints
+          echo "🔍 Performing comprehensive health verification..."
+          
+          # Check main health endpoint
+          if ! check_health; then
+            echo "❌ Primary health check failed"
             exit 1
           fi
+          
+          # Optional: Check if the main application page loads
+          main_page_status=$(curl -s -w "%{http_code}" "http://$INSTANCE_IP/" -o /dev/null)
+          if [ "$main_page_status" = "200" ]; then
+            echo "✅ Main application page is accessible"
+          else
+            echo "⚠️ Warning: Main application page returned status $main_page_status"
+          fi
+          
+          # Get application info for summary
+          app_info=$(curl -s "http://$INSTANCE_IP/api/health" | head -c 200 || echo "Could not fetch app info")
+          
+          echo "🎉 Deployment successful!"
+          echo "Application is available at: http://$INSTANCE_IP"
+          echo "## 🚀 Deployment Results" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Application Status**: Healthy" >> $GITHUB_STEP_SUMMARY
+          echo "🌐 **Application URL**: http://$INSTANCE_IP" >> $GITHUB_STEP_SUMMARY
+          echo "⏱️ **Health Check Attempts**: $attempt/$max_attempts" >> $GITHUB_STEP_SUMMARY
+          echo "📊 **Application Info**: \`$app_info\`" >> $GITHUB_STEP_SUMMARY
+          echo "🐳 **Image Tag**: ${{ needs.setup.outputs.image-tag }}" >> $GITHUB_STEP_SUMMARY
