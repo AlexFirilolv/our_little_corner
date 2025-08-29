@@ -79,7 +79,7 @@ resource "aws_launch_template" "ecs_instances" {
 # Auto Scaling Group for ECS Instances
 resource "aws_autoscaling_group" "ecs_instances" {
   name                = "${terraform.workspace}-ecs-asg"
-  vpc_zone_identifier = [aws_subnet.public_a.id, aws_subnet.public_b.id]
+  vpc_zone_identifier = [aws_subnet.public.id, aws_subnet.public_b.id]
   target_group_arns   = [aws_lb_target_group.app.arn]
   health_check_type   = "ELB"
   health_check_grace_period = 300
@@ -279,7 +279,7 @@ resource "aws_lb" "main" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb_sg.id]
-  subnets            = [aws_subnet.public_a.id, aws_subnet.public_b.id]
+  subnets            = [aws_subnet.public.id, aws_subnet.public_b.id]
 
   enable_deletion_protection = false
 
