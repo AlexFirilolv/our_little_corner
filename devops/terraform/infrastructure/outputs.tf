@@ -1,36 +1,28 @@
-output "vpc_id" {
-  description = "The ID of the VPC"
-  value       = aws_vpc.main.id
-}
-
-output "public_subnet_id" {
-  description = "The ID of the public subnet"
-  value       = aws_subnet.public.id
-}
-
-output "security_group_id" {
-  description = "The ID of the security group"
-  value       = aws_security_group.web.id
-}
-
-output "ec2_public_ip" {
-  description = "The public IP of the EC2 instance"
-  value       = aws_instance.main.public_ip
-}
-
-output "ec2_public_dns" {
-  description = "The public DNS of the EC2 instance"
-  value       = aws_instance.main.public_dns
-}
-
-output "key_pair_name" {
-  description = "The name of the AWS key pair"
-  value       = aws_key_pair.deployment_key.key_name
-}
-
 output "ecr_repository_url" {
   description = "The URL of the ECR repository"
   value       = aws_ecr_repository.app.repository_url
+}
+
+# EC2 outputs removed - replaced by ECS/ALB endpoints
+
+output "vpc_id" {
+  description = "The VPC ID"
+  value       = aws_vpc.main.id
+}
+
+output "subnet_id" {
+  description = "The public subnet ID"
+  value       = aws_subnet.public.id
+}
+
+output "alb_security_group_id" {
+  description = "The security group ID for the ALB"
+  value       = aws_security_group.alb_sg.id
+}
+
+output "ecs_security_group_id" {
+  description = "The security group ID for ECS instances"
+  value       = aws_security_group.ecs_instance_sg.id
 }
 
 # RDS Outputs
@@ -63,27 +55,84 @@ output "database_url" {
 }
 
 output "secrets_manager_secret_name" {
-  description = "Name of the Secrets Manager secret"
+  description = "The name of the AWS Secrets Manager secret containing database credentials"
   value       = aws_secretsmanager_secret.db_credentials.name
+  sensitive   = false
+}
+
+output "private_subnet_a_id" {
+  description = "The ID of the first private subnet"
+  value       = aws_subnet.private_a.id
+}
+
+output "private_subnet_b_id" {
+  description = "The ID of the second private subnet"
+  value       = aws_subnet.private_b.id
+}
+
+output "rds_security_group_id" {
+  description = "The security group ID for the RDS instance"
+  value       = aws_security_group.rds_sg.id
+}
+
+# Monitoring Outputs
+output "cloudwatch_dashboard_url" {
+  description = "The URL to the CloudWatch dashboard"
+  value       = "https://${var.aws_region}.console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${aws_cloudwatch_dashboard.main.dashboard_name}"
+}
+
+output "ec2_log_group" {
+  description = "The name of the CloudWatch log group for EC2 logs"
+  value       = aws_cloudwatch_log_group.ec2_logs.name
+}
+
+output "app_log_group" {
+  description = "The name of the CloudWatch log group for application logs"
+  value       = aws_cloudwatch_log_group.app_logs.name
 }
 
 # ECS Outputs
 output "ecs_cluster_name" {
-  description = "Name of the ECS cluster"
+  description = "The name of the ECS cluster"
   value       = aws_ecs_cluster.main.name
 }
 
+output "ecs_cluster_arn" {
+  description = "The ARN of the ECS cluster"
+  value       = aws_ecs_cluster.main.arn
+}
+
 output "ecs_service_name" {
-  description = "Name of the ECS service"
+  description = "The name of the ECS service"
   value       = aws_ecs_service.app.name
 }
 
+output "ecs_service_arn" {
+  description = "The ARN of the ECS service"
+  value       = aws_ecs_service.app.id
+}
+
 output "alb_dns_name" {
-  description = "DNS name of the Application Load Balancer"
+  description = "The DNS name of the Application Load Balancer"
   value       = aws_lb.main.dns_name
 }
 
+output "alb_zone_id" {
+  description = "The zone ID of the Application Load Balancer"
+  value       = aws_lb.main.zone_id
+}
+
+output "alb_arn" {
+  description = "The ARN of the Application Load Balancer"
+  value       = aws_lb.main.arn
+}
+
 output "app_secrets_name" {
-  description = "Name of the application secrets in Secrets Manager"
+  description = "The name of the AWS Secrets Manager secret containing application secrets"
   value       = aws_secretsmanager_secret.app_secrets.name
+}
+
+output "target_group_arn" {
+  description = "The ARN of the target group"
+  value       = aws_lb_target_group.app.arn
 }

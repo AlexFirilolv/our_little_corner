@@ -262,11 +262,6 @@ resource "aws_ecs_service" "app" {
 
   depends_on = [aws_lb_listener.front_end]
 
-  deployment_configuration {
-    maximum_percent         = 200
-    minimum_healthy_percent = 50
-  }
-
   tags = {
     Name        = "${terraform.workspace}-app-service"
     Environment = terraform.workspace
