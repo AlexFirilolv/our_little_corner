@@ -383,7 +383,7 @@ jobs:
               
             echo "✅ Container started successfully"
             
-DEPLOY_EOF
+          DEPLOY_EOF
           
           # Clean up SSH key
           rm deployment_key
