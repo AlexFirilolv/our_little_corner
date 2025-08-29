@@ -47,7 +47,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Storage**: Amazon S3 for media files with presigned URLs
 - **Authentication**: Firebase Auth + fallback password/session system (JWT)
 - **Multi-tenancy**: Corner-based isolation with invite system
-- **Deployment**: Docker Compose with separate app and database containers
+- **Deployment**: AWS ECS with EC2 + Application Load Balancer (primary) or Docker Compose (local dev)
 
 ## Development Commands
 
@@ -85,6 +85,17 @@ npm run test:e2e                      # Run end-to-end tests
 
 # Infrastructure Testing
 cd devops/terraform/infrastructure && terraform plan -var-file="dev.tfvars"
+
+# ECS Deployment (Recommended)
+# Deploy with ECS cluster, ALB, and managed scaling
+gh workflow run deploy-ecs.yml --ref main -f environment=DEV
+
+# Legacy EC2 Deployment
+# Deploy to single EC2 instance (legacy method)
+gh workflow run deploy.yml --ref main -f environment=DEV
+
+# ECS Validation
+./scripts/validate-ecs-deployment.sh -e dev  # Validate ECS deployment
 ```
 
 ## Key Directory Structure
@@ -511,11 +522,14 @@ terraform destroy -var-file="dev.tfvars"       # Clean up environment
 
 ### Infrastructure Components
 - **VPC**: Isolated network per environment (dev/stage/prod)
-- **EC2**: Ubuntu instances running Docker containers
+- **ECS**: Container orchestration with EC2 capacity provider (primary deployment)
+- **ALB**: Application Load Balancer for traffic distribution and health checks
+- **EC2**: Auto Scaling Group for ECS cluster instances
 - **ECR**: Container registry for application images
 - **RDS**: PostgreSQL database (replaces containerized DB in production)
-- **Security Groups**: HTTP/HTTPS/SSH access configuration
-- **IAM Roles**: EC2 instance permissions for ECR and SSM
+- **Secrets Manager**: Secure storage for application and database credentials
+- **Security Groups**: ALB-to-ECS and database access configuration
+- **IAM Roles**: ECS task execution and application permissions
 
 ### Environment Management
 - **Workspaces**: dev, stage, prod environments with isolated resources
