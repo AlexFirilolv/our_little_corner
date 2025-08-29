@@ -317,17 +317,28 @@ jobs:
               sleep 3
             done
             
-            # Ensure ubuntu user is in docker group (may already be done by user-data)
+            # Ensure ubuntu user is in docker group and refresh group membership
             if ! groups ubuntu | grep -q docker; then
               echo "🔧 Adding ubuntu user to docker group..."
               sudo usermod -aG docker ubuntu
+              echo "✅ User added to docker group"
             else
               echo "✅ Ubuntu user is already in docker group"
             fi
             
-            # Stop and remove existing container if it exists
-            docker stop our-little-corner-app || true
-            docker rm our-little-corner-app || true
+            # Refresh group membership for docker commands or use sudo as fallback
+            echo "🔧 Ensuring Docker daemon access..."
+            if ! docker info >/dev/null 2>&1; then
+              echo "⚠️ Docker access issue detected. Using sudo for Docker commands."
+              DOCKER_CMD="sudo docker"
+            else
+              DOCKER_CMD="docker"
+            fi
+            echo "✅ Docker command setup complete"
+            
+            # Stop and remove existing container if it exists  
+            $DOCKER_CMD stop our-little-corner-app || true
+            $DOCKER_CMD rm our-little-corner-app || true
             
             # Get database credentials from AWS Secrets Manager on the EC2 instance with retry logic
             echo "🔐 Getting database credentials from AWS Secrets Manager..."
@@ -342,6 +353,7 @@ jobs:
               
               if DB_SECRETS=$(aws secretsmanager get-secret-value --secret-id ${SECRETS_MANAGER_SECRET_NAME} --region ${AWS_REGION} --query SecretString --output text 2>&1); then
                 echo "✅ Successfully retrieved database credentials"
+                secrets_success=true
                 break
               else
                 echo "❌ Failed to retrieve secrets: $DB_SECRETS"
@@ -353,7 +365,7 @@ jobs:
               fi
             done
             
-            if [ -z "$DB_SECRETS" ] || [ $retry_count -eq $max_retries ]; then
+            if [ "$secrets_success" != "true" ]; then
               echo "❌ Failed to retrieve database credentials after $max_retries attempts"
               exit 1
             fi
@@ -387,15 +399,15 @@ jobs:
             
             # Login to ECR
             echo "🔑 Logging into ECR registry: $ECR_REGISTRY"
-            aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin $ECR_REGISTRY
+            aws ecr get-login-password --region ${AWS_REGION} | $DOCKER_CMD login --username AWS --password-stdin $ECR_REGISTRY
             
             # Pull latest image
             echo "📥 Pulling Docker image: $ECR_REPO:$IMAGE_TAG"
-            docker pull $ECR_REPO:$IMAGE_TAG
+            $DOCKER_CMD pull $ECR_REPO:$IMAGE_TAG
             
             # Run new container with environment variables
             echo "🚀 Starting container..."
-            docker run -d \
+            $DOCKER_CMD run -d \
               --name our-little-corner-app \
               -p 80:3000 \
               --restart unless-stopped \
