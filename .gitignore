@@ -51,7 +51,8 @@ docker-compose.override.yml
 Thumbs.db
 
 .terraform*
-terraform.tfstate.d
+terraform.tfstate*
 .claude
+*.tfvars
 
 CLAUDE.md
