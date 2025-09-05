@@ -1,4 +1,13 @@
-# variables.tf
+variable "aws" {
+  description = "AWS environemnt variables"
+  type = object({
+    region = string
+    db = object({
+      username = string
+      password = string
+      })
+    })
+  }
 
 variable "pve" {
   description = "Proxmox Virtual Environment connection details."
@@ -7,7 +16,7 @@ variable "pve" {
     user     = string
     password = string
   })
-  sensitive = true # Mark the whole object as sensitive because it contains a password
+  sensitive = true
 }
 
 variable "os" {
