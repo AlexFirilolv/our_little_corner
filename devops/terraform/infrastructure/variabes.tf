@@ -24,6 +24,7 @@ variable "os" {
   type = object({
     template = string
     password = string
+    hostname = string
   })
   sensitive = true
 }

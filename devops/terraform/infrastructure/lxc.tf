@@ -2,9 +2,9 @@ resource "proxmox_lxc" "lxc-app" {
     features {
         nesting = true
     }
-    hostname     = "terraform-container"
-    memory       = 1024
-    cores        = 2
+    hostname     = var.os.hostname
+    memory       = 2048
+    cores        = 4
     network {
         name   = "eth0"
         bridge = "vmbr0"
