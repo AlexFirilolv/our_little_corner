@@ -8,7 +8,7 @@ import {
 } from '@/lib/db'
 import type { CreateMediaItem, UpdateMediaItem } from '@/lib/types'
 import { requireCornerAccess, getUserFromAuthHeader } from '@/lib/firebase/serverAuth'
-import { deleteFileFromS3 } from '@/lib/s3'
+import { deleteFileFromGCS } from '@/lib/gcs'
 
 /**
  * GET /api/media - Get all media items
@@ -236,12 +236,12 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Try to delete from S3 (non-blocking)
+    // Try to delete from GCS (non-blocking)
     try {
-      await deleteFileFromS3(mediaItem.s3_key)
-    } catch (s3Error) {
-      console.error('S3 deletion error (non-blocking):', s3Error)
-      // Don't fail the entire operation if S3 deletion fails
+      await deleteFileFromGCS(mediaItem.s3_key)
+    } catch (gcsError) {
+      console.error('GCS deletion error (non-blocking):', gcsError)
+      // Don't fail the entire operation if GCS deletion fails
     }
 
     return NextResponse.json(

@@ -50,16 +50,54 @@ export interface SortOptions {
 export type ViewMode = 'gallery' | 'list' | 'icons' | 'columns' | 'timeline'
 
 /**
- * Execute a query with the connection pool
+ * Execute a query with the connection pool with retry logic
  */
-export async function query(text: string, params?: any[]): Promise<any> {
-  const client = await pool.connect()
-  try {
-    const result = await client.query(text, params)
-    return result
-  } finally {
-    client.release()
+export async function query(text: string, params?: any[], retries = 5): Promise<any> {
+  let lastError: any;
+  let delay = 500; // Starting delay in ms
+
+  for (let i = 0; i < retries; i++) {
+    let client;
+    try {
+      client = await pool.connect();
+      const result = await client.query(text, params);
+      return result;
+    } catch (err) {
+      lastError = err;
+      console.warn(`Database query failed (attempt ${i + 1}/${retries}). Retrying in ${delay}ms...`);
+      
+      // If it's not a connection error, don't retry
+      if (err instanceof Error && !err.message.includes('connect') && !err.message.includes('terminated')) {
+        throw err;
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 2; // Exponential backoff
+    } finally {
+      if (client) client.release();
+    }
   }
+
+  console.error('Database query failed after maximum retries');
+  throw lastError;
+}
+
+/**
+ * Wait for database to be ready (useful during startup)
+ */
+export async function waitForDB(maxAttempts = 10): Promise<void> {
+  console.log('Waiting for database to be ready...');
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      await query('SELECT 1');
+      console.log('✓ Database is ready');
+      return;
+    } catch (err) {
+      console.log(`Database not ready (attempt ${i + 1}/${maxAttempts})...`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+  }
+  throw new Error('Database failed to become ready');
 }
 
 // Memory Group Functions

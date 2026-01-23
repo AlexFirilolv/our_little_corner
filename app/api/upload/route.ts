@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { generatePresignedUploadUrl, isValidFileType, getMaxFileSize } from '@/lib/s3'
+import { generatePresignedUploadUrl, isValidFileType, getMaxFileSize } from '@/lib/gcs'
 import { requireAuth } from '@/lib/firebase/serverAuth'
 
 /**

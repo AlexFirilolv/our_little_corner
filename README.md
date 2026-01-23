@@ -25,8 +25,8 @@ A beautiful, romantic digital scrapbook web application for celebrating relation
 - **Analytics Dashboard** - View statistics about your collection
 
 ### ☁️ Modern Infrastructure
-- **AWS S3 Storage** - Secure, scalable cloud storage for all media files
-- **PostgreSQL Database** - Reliable storage for metadata and notes
+- **GCP Cloud Storage** - Secure, scalable cloud storage for all media files
+- **PostgreSQL Database** - Reliable storage for metadata and notes (designed for K8s StatefulSets)
 - **Docker Deployment** - Complete containerized setup for easy hosting
 - **Next.js 15** - Latest React framework with App Router
 
@@ -34,7 +34,7 @@ A beautiful, romantic digital scrapbook web application for celebrating relation
 
 ### Prerequisites
 - Docker and Docker Compose
-- AWS S3 bucket and credentials
+- GCP project and service account credentials
 - Domain name (optional, can run on localhost)
 
 ### 1. Clone & Setup
@@ -58,11 +58,11 @@ APP_PASSWORD=your_romantic_password_here
 JWT_SECRET=your_jwt_secret_minimum_32_characters_long
 NEXTAUTH_SECRET=your_nextauth_secret_minimum_32_characters
 
-# AWS S3 Configuration
-AWS_ACCESS_KEY_ID=your_aws_access_key_id
-AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key
-AWS_REGION=us-east-1
-S3_BUCKET_NAME=your-romantic-bucket-name
+# GCP Cloud Storage Configuration
+GCP_PROJECT_ID=your_gcp_project_id
+GCP_CLIENT_EMAIL=your_gcp_service_account_email
+GCP_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+GCS_BUCKET_NAME=your-romantic-bucket-name
 
 # Application URLs
 NEXTAUTH_URL=http://localhost:3000
@@ -122,14 +122,14 @@ docker compose down
 
 ### Backend
 - **Next.js API Routes** - RESTful API endpoints
-- **PostgreSQL** - Primary database for metadata
-- **AWS S3** - Cloud storage for media files
+- **PostgreSQL** - Primary database for metadata (with exponential backoff retries for K8s stability)
+- **GCP Cloud Storage** - Cloud storage for media files
 - **JWT Authentication** - Secure session management
 
 ### Deployment
 - **Docker Compose** - Multi-container orchestration
+- **Kubernetes Ready** - Designed to work with K8s StatefulSets and services
 - **Nginx** (optional) - Reverse proxy and SSL termination
-- **PostgreSQL Container** - Isolated database instance
 
 ## 🔧 Development
 
@@ -162,10 +162,10 @@ our-little-corner/
 │   ├── api/                # API endpoints
 │   │   ├── auth/           # Authentication
 │   │   ├── media/          # Media CRUD
-│   │   └── upload/         # S3 presigned URLs
+│   │   └── upload/         # GCP presigned URLs
 │   ├── lib/                # Utilities
-│   │   ├── db.ts           # Database functions
-│   │   ├── s3.ts           # S3 operations
+│   │   ├── db.ts           # Database functions (retry-enabled)
+│   │   ├── gcs.ts           # GCP Cloud Storage operations
 │   │   └── auth.ts         # Authentication logic
 │   └── components/ui/      # Reusable UI components
 ├── docker-compose.yml      # Container orchestration
@@ -219,6 +219,9 @@ NODE_ENV=production docker-compose up -d
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
+### Kubernetes (StatefulSet)
+The application is designed to handle the dynamic nature of K8s. The database client includes retry logic with exponential backoff to gracefully wait for the database service to become ready.
+
 ### Environment Variables for Production
 ```env
 NODE_ENV=production
@@ -253,25 +256,21 @@ docker-compose logs -f app
 ```
 
 ### Storage Usage
-Monitor S3 costs and usage through AWS CloudWatch.
+Monitor GCP billing and bucket usage through Google Cloud Console.
 
 ## 🐛 Troubleshooting
 
 ### Common Issues
 
 **Database Connection Failed**
-```bash
-# Check if database is running
-docker-compose ps
+- Ensure `DATABASE_URL` is correct.
+- If using K8s, ensure the service name matches the URL.
+- The app will automatically retry connection up to 10 times.
 
-# Restart database
-docker-compose restart db
-```
-
-**S3 Upload Errors**
-- Verify AWS credentials in `.env`
-- Check S3 bucket permissions
-- Ensure bucket exists in specified region
+**GCP Upload Errors**
+- Verify GCP credentials in `.env` (ensure private key has `\n` characters properly escaped).
+- Check GCS bucket permissions (Service Account needs Storage Object Admin).
+- Ensure bucket exists in the specified project.
 
 **Memory Issues**
 ```bash

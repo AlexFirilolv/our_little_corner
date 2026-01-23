@@ -1,15 +1,15 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { Storage } from '@google-cloud/storage'
 
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION || 'us-east-1',
+const storage = new Storage({
+  projectId: process.env.GCP_PROJECT_ID,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    client_email: process.env.GCP_CLIENT_EMAIL,
+    private_key: process.env.GCP_PRIVATE_KEY?.replace(/\\n/g, '\n'),
   },
 })
 
-const BUCKET_NAME = process.env.S3_BUCKET_NAME!
+const BUCKET_NAME = process.env.GCS_BUCKET_NAME!
+const bucket = storage.bucket(BUCKET_NAME)
 
 export interface PresignedUrlResponse {
   uploadUrl: string
@@ -18,7 +18,7 @@ export interface PresignedUrlResponse {
 }
 
 /**
- * Generate a presigned URL for uploading files to S3
+ * Generate a presigned URL for uploading files to GCP Cloud Storage
  */
 export async function generatePresignedUploadUrl(
   filename: string,
@@ -29,33 +29,26 @@ export async function generatePresignedUploadUrl(
     // Generate a unique key for the file
     const timestamp = Date.now()
     const randomString = Math.random().toString(36).substring(2, 15)
-    const fileExtension = filename.split('.').pop()
     const sanitizedFilename = filename.replace(/[^a-zA-Z0-9.-]/g, '_')
     
     const key = `media/${timestamp}-${randomString}-${sanitizedFilename}`
-    
-    // Create the S3 command for uploading
-    const command = new PutObjectCommand({
-      Bucket: BUCKET_NAME,
-      Key: key,
-      ContentType: fileType,
-      ContentLength: fileSizeBytes,
-      // Add metadata
-      Metadata: {
-        'original-filename': filename,
-        'upload-timestamp': timestamp.toString(),
-      },
-      // Set cache control for better performance
-      CacheControl: 'max-age=31536000', // 1 year
-    })
+    const file = bucket.file(key)
 
-    // Generate the presigned URL (expires in 5 minutes)
-    const uploadUrl = await getSignedUrl(s3Client, command, { 
-      expiresIn: 300 // 5 minutes
+    // Generate the presigned URL for uploading (V4)
+    const [uploadUrl] = await file.getSignedUrl({
+      version: 'v4',
+      action: 'write',
+      expires: Date.now() + 5 * 60 * 1000, // 5 minutes
+      contentType: fileType,
+      extensionHeaders: {
+        'x-goog-meta-original-filename': filename,
+        'x-goog-meta-upload-timestamp': timestamp.toString(),
+      },
     })
 
     // Construct the public URL for accessing the file
-    const fileUrl = `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`
+    // GCP Public URL format: https://storage.googleapis.com/[BUCKET_NAME]/[KEY]
+    const fileUrl = `https://storage.googleapis.com/${BUCKET_NAME}/${key}`
 
     return {
       uploadUrl,
@@ -63,47 +56,45 @@ export async function generatePresignedUploadUrl(
       fileUrl,
     }
   } catch (error) {
-    console.error('Error generating presigned URL:', error)
+    console.error('Error generating GCP presigned URL:', error)
     throw new Error('Failed to generate upload URL')
   }
 }
 
 /**
- * Generate a presigned URL for downloading/viewing files from S3
+ * Generate a presigned URL for downloading/viewing files from GCP Cloud Storage
  */
 export async function generatePresignedDownloadUrl(key: string): Promise<string> {
   try {
-    const command = new GetObjectCommand({
-      Bucket: BUCKET_NAME,
-      Key: key,
-    })
-
+    const file = bucket.file(key)
+    
     // Generate the presigned URL (expires in 1 hour)
-    const downloadUrl = await getSignedUrl(s3Client, command, { 
-      expiresIn: 3600 // 1 hour
+    const [downloadUrl] = await file.getSignedUrl({
+      version: 'v4',
+      action: 'read',
+      expires: Date.now() + 60 * 60 * 1000, // 1 hour
     })
 
     return downloadUrl
   } catch (error) {
-    console.error('Error generating presigned download URL:', error)
+    console.error('Error generating GCP presigned download URL:', error)
     throw new Error('Failed to generate download URL')
   }
 }
 
 /**
- * Delete a file from S3
+ * Delete a file from GCP Cloud Storage
  */
-export async function deleteFileFromS3(key: string): Promise<void> {
+export async function deleteFileFromGCS(key: string): Promise<void> {
   try {
-    const command = new DeleteObjectCommand({
-      Bucket: BUCKET_NAME,
-      Key: key,
-    })
-
-    await s3Client.send(command)
+    const file = bucket.file(key)
+    await file.delete()
   } catch (error) {
-    console.error('Error deleting file from S3:', error)
-    throw new Error('Failed to delete file')
+    console.error('Error deleting file from GCS:', error)
+    // Don't throw if file already deleted
+    if ((error as any).code !== 404) {
+      throw new Error('Failed to delete file')
+    }
   }
 }
 
@@ -127,7 +118,7 @@ export function isValidFileType(mimeType: string): boolean {
   const allowedTypes = [
     // Images
     'image/jpeg',
-    'image/jpg', 
+    'image/jpg',
     'image/png',
     'image/gif',
     'image/webp',

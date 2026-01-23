@@ -1,5 +1,6 @@
 // Startup initialization for the application
 import { runPendingMigrations } from './migrations';
+import { waitForDB } from './db';
 
 // Flag to track if initialization has been run
 let isInitialized = false;
@@ -12,6 +13,9 @@ export async function initializeApp(): Promise<void> {
   console.log('Initializing application...');
 
   try {
+    // Ensure DB is ready before migrations
+    await waitForDB();
+    
     // Run database migrations
     await runPendingMigrations();
     
