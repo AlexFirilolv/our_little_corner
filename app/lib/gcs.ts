@@ -1,15 +1,29 @@
 import { Storage } from '@google-cloud/storage'
 
-const storage = new Storage({
-  projectId: process.env.GCP_PROJECT_ID,
-  credentials: {
-    client_email: process.env.GCP_CLIENT_EMAIL,
-    private_key: process.env.GCP_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-  },
-})
+let storageInstance: Storage | null = null
+let bucketInstance: any = null
 
-const BUCKET_NAME = process.env.GCS_BUCKET_NAME!
-const bucket = storage.bucket(BUCKET_NAME)
+function getBucket() {
+  if (bucketInstance) return bucketInstance
+
+  const bucketName = process.env.GCS_BUCKET_NAME
+  if (!bucketName) {
+    throw new Error('GCS_BUCKET_NAME is not defined')
+  }
+
+  if (!storageInstance) {
+    storageInstance = new Storage({
+      projectId: process.env.GCP_PROJECT_ID,
+      credentials: {
+        client_email: process.env.GCP_CLIENT_EMAIL,
+        private_key: process.env.GCP_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      },
+    })
+  }
+
+  bucketInstance = storageInstance.bucket(bucketName)
+  return bucketInstance
+}
 
 export interface PresignedUrlResponse {
   uploadUrl: string
@@ -26,6 +40,7 @@ export async function generatePresignedUploadUrl(
   fileSizeBytes: number
 ): Promise<PresignedUrlResponse> {
   try {
+    const bucket = getBucket()
     // Generate a unique key for the file
     const timestamp = Date.now()
     const randomString = Math.random().toString(36).substring(2, 15)
@@ -48,7 +63,8 @@ export async function generatePresignedUploadUrl(
 
     // Construct the public URL for accessing the file
     // GCP Public URL format: https://storage.googleapis.com/[BUCKET_NAME]/[KEY]
-    const fileUrl = `https://storage.googleapis.com/${BUCKET_NAME}/${key}`
+    const bucketName = process.env.GCS_BUCKET_NAME
+    const fileUrl = `https://storage.googleapis.com/${bucketName}/${key}`
 
     return {
       uploadUrl,
@@ -66,6 +82,7 @@ export async function generatePresignedUploadUrl(
  */
 export async function generatePresignedDownloadUrl(key: string): Promise<string> {
   try {
+    const bucket = getBucket()
     const file = bucket.file(key)
     
     // Generate the presigned URL (expires in 1 hour)
@@ -87,6 +104,7 @@ export async function generatePresignedDownloadUrl(key: string): Promise<string>
  */
 export async function deleteFileFromGCS(key: string): Promise<void> {
   try {
+    const bucket = getBucket()
     const file = bucket.file(key)
     await file.delete()
   } catch (error) {
