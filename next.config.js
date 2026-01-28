@@ -5,18 +5,12 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '*.s3.amazonaws.com',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: '*.s3.*.amazonaws.com',
+        hostname: 'storage.googleapis.com',
         port: '',
         pathname: '/**',
       },
     ],
-    unoptimized: process.env.NODE_ENV === 'production', // Disable optimization for S3 images
+    unoptimized: process.env.NODE_ENV === 'production', // Disable optimization for external images in production
   },
 }
 
