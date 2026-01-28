@@ -61,13 +61,13 @@ export function middleware(request: NextRequest) {
   // Content Security Policy
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-eval' 'unsafe-inline'", // Next.js requires unsafe-eval and unsafe-inline
+    "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://apis.google.com https://www.gstatic.com https://*.firebaseapp.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: https: blob:",
     "media-src 'self' https: blob:",
-    "connect-src 'self' https:",
-    "frame-src 'none'",
+    "connect-src 'self' https: https://*.googleapis.com https://*.firebaseapp.com https://*.firebaseio.com",
+    "frame-src 'self' https://*.firebaseapp.com https://*.firebaseio.com",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
