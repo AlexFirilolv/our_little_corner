@@ -3,6 +3,8 @@ name: Build and Push Image
 on:
   push:
     branches: [ "main" ]
+    # ADD THIS: Trigger on version tags
+    tags: [ 'v*.*.*' ]
     paths-ignore:
       - '**.md'
       - 'docs/**'
@@ -38,8 +40,9 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest
-            type=sha,format=long
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+            type=raw,value={{date 'X'}},enable={{is_default_branch}}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
