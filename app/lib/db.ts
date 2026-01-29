@@ -37,7 +37,7 @@ import type {
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   // Disable SSL for localhost development
-  ssl: process.env.DATABASE_URL?.includes('localhost') || process.env.DATABASE_URL?.includes('127.0.0.1') || process.env.DATABASE_URL?.includes('db:5432') ? false : { rejectUnauthorized: false },
+  ssl: process.env.DATABASE_URL?.includes('localhost') || process.env.DATABASE_URL?.includes('127.0.0.1') || process.env.DATABASE_URL?.includes('db:5432') || process.env.DATABASE_URL?.includes('postgres') ? false : { rejectUnauthorized: false },
   max: 20, // Maximum number of connections in the pool
   idleTimeoutMillis: 30000, // How long a client is allowed to remain idle
   connectionTimeoutMillis: 2000, // How long to wait for a connection
