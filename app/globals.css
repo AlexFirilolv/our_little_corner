@@ -1,29 +1,29 @@
-@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&family=Quicksand:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Lato:wght@300;400;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 245 230 232; /* #F5E6E8 - Creamy White */
-    --foreground: 92 84 112; /* #5C5470 - Dark Muted Purple */
-    --card: 245 230 232;
-    --card-foreground: 92 84 112;
-    --popover: 245 230 232;
-    --popover-foreground: 92 84 112;
-    --primary: 255 192 203; /* #FFC0CB - Pastel Pink */
-    --primary-foreground: 92 84 112;
-    --secondary: 245 230 232; /* #F5E6E8 - Creamy White */
-    --secondary-foreground: 92 84 112;
-    --muted: 245 230 232;
-    --muted-foreground: 92 84 112;
-    --accent: 217 170 183; /* #D9AAB7 - Dusty Rose */
-    --accent-foreground: 92 84 112;
+    --background: 253 246 247; /* #FDF6F7 - Blush Paper */
+    --foreground: 74 44 53; /* #4A2C35 - Dark Truffle */
+    --card: 253 246 247;
+    --card-foreground: 74 44 53;
+    --popover: 253 246 247;
+    --popover-foreground: 74 44 53;
+    --primary: 186 74 104; /* #BA4A68 - Deep Rose */
+    --primary-foreground: 253 246 247;
+    --secondary: 253 246 247; /* #FDF6F7 - Blush Paper */
+    --secondary-foreground: 74 44 53;
+    --muted: 245 238 240; /* Slightly darker blush */
+    --muted-foreground: 92 84 112; /* Truffle */
+    --accent: 200 166 89; /* #C8A659 - Muted Gold */
+    --accent-foreground: 74 44 53;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217 170 183;
-    --input: 245 230 232;
-    --ring: 255 192 203;
+    --border: 186 74 104; /* Deep Rose */
+    --input: 253 246 247;
+    --ring: 186 74 104;
     --radius: 0.75rem;
   }
 }
@@ -37,7 +37,7 @@
   }
   
   h1, h2, h3 {
-    @apply font-romantic;
+    @apply font-heading;
   }
 }
 
@@ -65,6 +65,10 @@
   
   .romantic-card {
     @apply bg-white/80 backdrop-blur-sm border border-accent/30 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02];
+  }
+  
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-md border border-white/50 shadow-lg dark:bg-[#221016]/70 dark:border-white/10;
   }
   
   .romantic-button {

@@ -160,37 +160,40 @@ export async function verifySessionCookie(sessionCookie?: string): Promise<Fireb
 }
 
 /**
- * Get user's corners with role information
+ * Get user's lockets with role information
  */
-export async function getUserCornersWithRole(firebaseUid: string) {
-  const { getUserCorners } = await import('../db');
-  return await getUserCorners(firebaseUid);
+export async function getUserLocketsWithRole(firebaseUid: string) {
+  const { getUserLockets } = await import('../db');
+  return await getUserLockets(firebaseUid);
 }
 
+// Backwards compatibility alias
+export const getUserCornersWithRole = getUserLocketsWithRole;
+
 /**
- * Check if user has access to a specific corner
+ * Check if user has access to a specific locket
  */
-export async function checkCornerAccess(cornerId: string, firebaseUid: string): Promise<boolean> {
+export async function checkCornerAccess(locketId: string, firebaseUid: string): Promise<boolean> {
   try {
-    const { getCornerById } = await import('../db');
-    const corner = await getCornerById(cornerId, firebaseUid);
-    return corner !== null && corner.user_role !== undefined;
+    const { getLocketById } = await import('../db');
+    const locket = await getLocketById(locketId, firebaseUid);
+    return locket !== null && locket.user_role !== undefined;
   } catch (error) {
-    console.error('Error checking corner access:', error);
+    console.error('Error checking locket access:', error);
     return false;
   }
 }
 
 /**
- * Check if user is admin of a specific corner
+ * Check if user is admin of a specific locket
  */
-export async function checkCornerAdmin(cornerId: string, firebaseUid: string): Promise<boolean> {
+export async function checkCornerAdmin(locketId: string, firebaseUid: string): Promise<boolean> {
   try {
-    const { getCornerById } = await import('../db');
-    const corner = await getCornerById(cornerId, firebaseUid);
-    return corner !== null && corner.user_role === 'admin';
+    const { getLocketById } = await import('../db');
+    const locket = await getLocketById(locketId, firebaseUid);
+    return locket !== null && locket.user_role === 'admin';
   } catch (error) {
-    console.error('Error checking corner admin:', error);
+    console.error('Error checking locket admin:', error);
     return false;
   }
 }
@@ -219,6 +222,9 @@ export async function requireCornerAccess(cornerId: string, authHeader?: string)
   
   const hasAccess = await checkCornerAccess(cornerId, user.uid);
   const isAdmin = await checkCornerAdmin(cornerId, user.uid);
-  
+
   return { user, hasAccess, isAdmin };
 }
+
+// Backwards compatibility alias
+export const requireLocketAccess = requireCornerAccess;

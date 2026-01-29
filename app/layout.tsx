@@ -1,23 +1,43 @@
 import './globals.css'
-import { Dancing_Script, Quicksand } from 'next/font/google'
+import { Playfair_Display, Lato, Plus_Jakarta_Sans, Newsreader, Noto_Sans } from 'next/font/google'
 import { AuthProvider } from './contexts/AuthContext'
-import { CornerProvider } from './contexts/CornerContext'
+import { LocketProvider } from './contexts/LocketContext'
 
-const dancingScript = Dancing_Script({ 
+const playfairDisplay = Playfair_Display({
   subsets: ['latin'],
-  variable: '--font-romantic',
+  variable: '--font-heading',
   display: 'swap',
 })
 
-const quicksand = Quicksand({ 
+const lato = Lato({
   subsets: ['latin'],
+  weight: ['300', '400', '700'],
   variable: '--font-body',
   display: 'swap',
 })
 
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  variable: '--font-jakarta',
+  display: 'swap',
+})
+
+const newsreader = Newsreader({
+  subsets: ['latin'],
+  variable: '--font-newsreader',
+  display: 'swap',
+  style: 'italic',
+})
+
+const notoSans = Noto_Sans({
+  subsets: ['latin'],
+  variable: '--font-noto',
+  display: 'swap',
+})
+
 export const metadata = {
-  title: 'Our Little Corner 💖',
-  description: 'A romantic digital scrapbook for our special memories',
+  title: 'Twofold',
+  description: 'A shared digital locket for couples',
 }
 
 export default function RootLayout({
@@ -27,11 +47,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${quicksand.variable} ${dancingScript.variable} font-body bg-background text-foreground antialiased`}>
+      <body className={`${lato.variable} ${playfairDisplay.variable} ${plusJakartaSans.variable} ${newsreader.variable} ${notoSans.variable} font-body bg-background text-foreground antialiased`}>
         <AuthProvider>
-          <CornerProvider>
+          <LocketProvider>
             {children}
-          </CornerProvider>
+          </LocketProvider>
         </AuthProvider>
       </body>
     </html>

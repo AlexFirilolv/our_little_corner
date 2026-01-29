@@ -94,36 +94,60 @@ CREATE TABLE corner_invites (
 );
 
 -- 4. UPDATE EXISTING TABLES TO INCLUDE CORNER_ID
+-- Note: These tables may not exist yet if this is a fresh install
+-- The app migrations will create them properly
 
--- Add corner_id to memory_groups table
-ALTER TABLE memory_groups ADD COLUMN corner_id UUID REFERENCES corners(id) ON DELETE CASCADE;
-ALTER TABLE memory_groups ADD COLUMN created_by_firebase_uid VARCHAR(255);
+-- Add corner_id to memory_groups table if it exists
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'memory_groups') THEN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name = 'memory_groups' AND column_name = 'corner_id') THEN
+            ALTER TABLE memory_groups ADD COLUMN corner_id UUID REFERENCES corners(id) ON DELETE CASCADE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name = 'memory_groups' AND column_name = 'created_by_firebase_uid') THEN
+            ALTER TABLE memory_groups ADD COLUMN created_by_firebase_uid VARCHAR(255);
+        END IF;
+    END IF;
+END $$;
 
--- Add corner_id to media table  
-ALTER TABLE media ADD COLUMN corner_id UUID REFERENCES corners(id) ON DELETE CASCADE;
-ALTER TABLE media ADD COLUMN uploaded_by_firebase_uid VARCHAR(255);
+-- Add corner_id to media table if it exists
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'media') THEN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name = 'media' AND column_name = 'corner_id') THEN
+            ALTER TABLE media ADD COLUMN corner_id UUID REFERENCES corners(id) ON DELETE CASCADE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name = 'media' AND column_name = 'uploaded_by_firebase_uid') THEN
+            ALTER TABLE media ADD COLUMN uploaded_by_firebase_uid VARCHAR(255);
+        END IF;
+    END IF;
+END $$;
 
 -- 5. CORNER_ANALYTICS TABLE - Track usage and sharing
 CREATE TABLE corner_analytics (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     corner_id UUID NOT NULL REFERENCES corners(id) ON DELETE CASCADE,
-    
+
     -- Event tracking
     event_type VARCHAR(50) NOT NULL, -- 'view', 'upload', 'share', 'invite'
     firebase_uid VARCHAR(255), -- NULL for anonymous/guest views
-    
+
     -- Additional data
     metadata JSONB DEFAULT '{}',
     ip_address INET,
     user_agent TEXT,
-    
+
     -- Timestamp
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    
-    -- Indexes
-    INDEX idx_corner_analytics_corner_event (corner_id, event_type),
-    INDEX idx_corner_analytics_date (created_at)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Create indexes separately (PostgreSQL doesn't support inline INDEX in CREATE TABLE)
+CREATE INDEX IF NOT EXISTS idx_corner_analytics_corner_event ON corner_analytics(corner_id, event_type);
+CREATE INDEX IF NOT EXISTS idx_corner_analytics_date ON corner_analytics(created_at);
 
 -- 6. SHARED_ACCESS_TOKENS TABLE - For temporary guest access
 CREATE TABLE shared_access_tokens (
@@ -154,10 +178,24 @@ CREATE TABLE shared_access_tokens (
 );
 
 -- 7. UPDATE SESSIONS TABLE FOR FIREBASE COMPATIBILITY
--- We'll keep this for guest/shared access sessions
-ALTER TABLE sessions ADD COLUMN corner_id UUID REFERENCES corners(id) ON DELETE CASCADE;
-ALTER TABLE sessions ADD COLUMN firebase_uid VARCHAR(255); -- NULL for guest sessions
-ALTER TABLE sessions ADD COLUMN session_type VARCHAR(20) DEFAULT 'firebase'; -- 'firebase', 'guest', 'shared'
+-- We'll keep this for guest/shared access sessions (if sessions table exists)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'sessions') THEN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name = 'sessions' AND column_name = 'corner_id') THEN
+            ALTER TABLE sessions ADD COLUMN corner_id UUID REFERENCES corners(id) ON DELETE CASCADE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name = 'sessions' AND column_name = 'firebase_uid') THEN
+            ALTER TABLE sessions ADD COLUMN firebase_uid VARCHAR(255);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name = 'sessions' AND column_name = 'session_type') THEN
+            ALTER TABLE sessions ADD COLUMN session_type VARCHAR(20) DEFAULT 'firebase';
+        END IF;
+    END IF;
+END $$;
 
 -- 8. CREATE INDEXES FOR PERFORMANCE
 
@@ -175,13 +213,23 @@ CREATE INDEX idx_corner_invites_token ON corner_invites(invite_token);
 CREATE INDEX idx_corner_invites_email ON corner_invites(email);
 CREATE INDEX idx_corner_invites_status ON corner_invites(status);
 
--- Memory groups indexes
-CREATE INDEX idx_memory_groups_corner ON memory_groups(corner_id);
-CREATE INDEX idx_memory_groups_creator ON memory_groups(created_by_firebase_uid);
+-- Memory groups indexes (if table exists)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'memory_groups') THEN
+        CREATE INDEX IF NOT EXISTS idx_memory_groups_corner ON memory_groups(corner_id);
+        CREATE INDEX IF NOT EXISTS idx_memory_groups_creator ON memory_groups(created_by_firebase_uid);
+    END IF;
+END $$;
 
--- Media indexes  
-CREATE INDEX idx_media_corner ON media(corner_id);
-CREATE INDEX idx_media_uploader ON media(uploaded_by_firebase_uid);
+-- Media indexes (if table exists)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'media') THEN
+        CREATE INDEX IF NOT EXISTS idx_media_corner ON media(corner_id);
+        CREATE INDEX IF NOT EXISTS idx_media_uploader ON media(uploaded_by_firebase_uid);
+    END IF;
+END $$;
 
 -- Shared tokens indexes
 CREATE INDEX idx_shared_tokens_corner ON shared_access_tokens(corner_id);
@@ -262,14 +310,22 @@ CREATE TRIGGER trigger_corners_updated_at
 
 -- 12. SECURITY POLICIES (Row Level Security)
 
--- Enable RLS on all tenant-aware tables
+-- Enable RLS on all tenant-aware tables (conditionally for tables that may not exist)
 ALTER TABLE corners ENABLE ROW LEVEL SECURITY;
 ALTER TABLE corner_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE corner_invites ENABLE ROW LEVEL SECURITY;
-ALTER TABLE memory_groups ENABLE ROW LEVEL SECURITY;
-ALTER TABLE media ENABLE ROW LEVEL SECURITY;
 ALTER TABLE corner_analytics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE shared_access_tokens ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'memory_groups') THEN
+        ALTER TABLE memory_groups ENABLE ROW LEVEL SECURITY;
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'media') THEN
+        ALTER TABLE media ENABLE ROW LEVEL SECURITY;
+    END IF;
+END $$;
 
 -- RLS policies will be created in a separate file for Firebase integration
 -- These will use Firebase JWT claims to ensure users can only access their corners

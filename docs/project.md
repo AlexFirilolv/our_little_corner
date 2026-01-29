@@ -1,20 +1,31 @@
-Project: Our Little Corner 💖
-A simple, private web app to celebrate our relationship and cherish our moments together.
+# Twofold
+
+**Twofold** Is shared 'locket' (journal) web application designed exclusively for couples. It serves as a dedicated digital space to document a relationship, celebrate milestones, and cherish daily moments.
 
 ## Goal
-The goal is to create a beautiful and personal digital scrapbook. It's a dedicated space for us to look back on our favorite memories—photos and videos—each with its own special note. This is a surprise for International Girlfriends Day!
+To move beyond a simple photo dump and create a "Digital Locket" — a living history of the relationship that includes photos, videos, written notes, locations, and future plans.
 
 ## Core Features
-💌 Media Gallery: A visual grid of all our uploaded photos and videos for her to see.
 
-✍️ Rich Notes & Captions: The ability to add a personal, richly formatted note or a sweet caption to every single memory.
+### 📖 The Shared Timeline
+A reverse-chronological feed of the relationship.
+* **Mixed Media:** Support for photos, videos, and text-only "Love Notes."
+* **Media Metadata Extraction** Uploaded media that includes metadata for date and time of taken photo, where it was taken (location), etc, will be imported automatically to visualize the timeline and location travel of the couple.
+* **Double Helix Design:** A visual thread connecting all memories, allowing multiple ways to view it, and an option to filter.
 
-🔐 Simple & Secure Access: The main gallery is protected by a single, shared password.
+### 🗺️ Our Journey
+* **Interactive Map:** Visualizes the couple's travel history, connecting geotagged memories with a path.
+* **Milestone Tracker:** A dedicated view for major life events (First "I Love You", Trips, Moving In), styled distinctly from daily posts.
+* **Flashbacks:** "On This Day" feature to surface memories from previous years.
 
-🔑 Session Persistence: Remembers you after you've logged in once from the same browser, so you don't have to enter the password on every visit.
+### 📝 Shared Lists
+* **Bucket List:** A shared checklist for future dates, travels, and goals.
+* **Favorites:** Keep track of movies to watch or restaurants to try.
 
-🤫 Hidden Admin Panel: A private admin dashboard, accessible only via a direct URL (/admin), for me to easily upload new media and manage content.
+### 🔒 Privacy & Security
+* **Couples-Only Access:** The platform is sealed to just the two partners.
+* **Secure Storage:** Media is stored privately in Google Cloud Storage Buckets.
 
-☁️ Secure Storage: All media will be stored in a public Amazon S3 bucket.
-
-✨ Cute & Simple UI: A clean, adorable, and easy-to-navigate design for the main gallery.
+## User Roles
+Unlike the previous iteration, there is no "Admin" vs. "Viewer."
+* **Partners:** Both users have equal rights to upload, edit, and view all content. The experience is perfectly symmetrical.

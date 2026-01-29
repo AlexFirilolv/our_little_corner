@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { useCorner } from '@/contexts/CornerContext'
+import { useLocket } from '@/contexts/LocketContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,14 +13,14 @@ import { Heart, Mail, Users, Loader2, CheckCircle, AlertCircle } from 'lucide-re
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { auth } from '@/lib/firebase/config'
 
-interface CornerInvite {
+interface LocketInvite {
   id: string
-  corner_id: string
+  locket_id: string
   email: string
   role: 'admin' | 'participant'
   status: 'pending' | 'accepted' | 'expired' | 'revoked'
   expires_at: string
-  corner?: {
+  locket?: {
     id: string
     name: string
     description?: string
@@ -32,9 +32,9 @@ export default function InvitePage({ params }: { params: { code: string } }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user } = useAuth()
-  const { switchCorner, refreshCorners } = useCorner()
+  const { switchLocket, refreshLockets } = useLocket()
   
-  const [invite, setInvite] = useState<CornerInvite | null>(null)
+  const [invite, setInvite] = useState<LocketInvite | null>(null)
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
@@ -58,8 +58,8 @@ export default function InvitePage({ params }: { params: { code: string } }) {
   const loadInvite = async () => {
     try {
       setLoading(true)
-      // We need to find the invite by corner invite_code and email
-      const response = await fetch(`/api/corner-invites?code=${code}&email=${inviteEmail || ''}`)
+      // We need to find the invite by locket invite_code and email
+      const response = await fetch(`/api/locket-invites?code=${code}&email=${inviteEmail || ''}`)
       
       if (response.ok) {
         const data = await response.json()
@@ -139,8 +139,8 @@ export default function InvitePage({ params }: { params: { code: string } }) {
 
     try {
       setProcessing(true)
-      
-      const response = await fetch(`/api/corner-invites/${invite.id}/accept`, {
+
+      const response = await fetch(`/api/locket-invites/${invite.id}/accept`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -148,14 +148,14 @@ export default function InvitePage({ params }: { params: { code: string } }) {
       })
 
       if (response.ok) {
-        setSuccess('Invitation accepted! Redirecting to your corner...')
-        
-        // Refresh corners to include the newly joined corner
-        await refreshCorners()
-        
-        // Switch to the invited corner
-        if (invite.corner) {
-          await switchCorner(invite.corner.id)
+        setSuccess('Invitation accepted! Redirecting to your locket...')
+
+        // Refresh lockets to include the newly joined locket
+        await refreshLockets()
+
+        // Switch to the invited locket
+        if (invite.locket) {
+          await switchLocket(invite.locket.id)
         }
         
         // Redirect to the gallery
@@ -231,11 +231,11 @@ export default function InvitePage({ params }: { params: { code: string } }) {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <Heart className="h-12 w-12 text-primary mx-auto mb-4" />
-          <CardTitle className="text-2xl font-romantic text-primary">
+          <CardTitle className="text-2xl font-heading text-primary">
             You're Invited!
           </CardTitle>
           <CardDescription>
-            Join <strong>{invite.corner?.name || 'Our Little Corner'}</strong> as a{' '}
+            Join <strong>{invite.locket?.name || 'Our Locket'}</strong> as a{' '}
             <Badge variant={invite.role === 'admin' ? 'default' : 'secondary'}>
               {invite.role}
             </Badge>

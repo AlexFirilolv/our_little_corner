@@ -1,16 +1,16 @@
 import { Pool, PoolClient } from 'pg'
 import type {
-  Corner,
-  CreateCorner,
-  UpdateCorner,
-  CornerUser,
-  CreateCornerUser,
-  UpdateCornerUser,
-  CornerInvite,
-  CreateCornerInvite,
-  UpdateCornerInvite,
-  CornerAnalytics,
-  CreateCornerAnalytics,
+  Locket,
+  CreateLocket,
+  UpdateLocket,
+  LocketUser,
+  CreateLocketUser,
+  UpdateLocketUser,
+  LocketInvite,
+  CreateLocketInvite,
+  UpdateLocketInvite,
+  LocketAnalytics,
+  CreateLocketAnalytics,
   SharedAccessToken,
   CreateSharedAccessToken,
   UpdateSharedAccessToken,
@@ -21,12 +21,23 @@ import type {
   CreateMediaItem,
   UpdateMediaItem,
   Session,
+  // Backwards compatibility aliases
+  Corner,
+  CreateCorner,
+  UpdateCorner,
+  CornerUser,
+  CreateCornerUser,
+  UpdateCornerUser,
+  CornerInvite,
+  CreateCornerInvite,
+  UpdateCornerInvite,
 } from './types'
 
 // Create a connection pool for better performance
-const pool = new Pool({
+export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes('localhost') || process.env.DATABASE_URL?.includes('db:5432') ? false : { rejectUnauthorized: false },
+  // Disable SSL for localhost development
+  ssl: process.env.DATABASE_URL?.includes('localhost') || process.env.DATABASE_URL?.includes('127.0.0.1') || process.env.DATABASE_URL?.includes('db:5432') ? false : { rejectUnauthorized: false },
   max: 20, // Maximum number of connections in the pool
   idleTimeoutMillis: 30000, // How long a client is allowed to remain idle
   connectionTimeoutMillis: 2000, // How long to wait for a connection
@@ -64,13 +75,14 @@ export async function query(text: string, params?: any[], retries = 5): Promise<
       return result;
     } catch (err) {
       lastError = err;
-      console.warn(`Database query failed (attempt ${i + 1}/${retries}). Retrying in ${delay}ms...`);
-      
+      console.warn(`Database query failed (attempt ${i + 1}/${retries}). Error:`, err);
+      console.warn(`Retrying in ${delay}ms...`);
+
       // If it's not a connection error, don't retry
       if (err instanceof Error && !err.message.includes('connect') && !err.message.includes('terminated')) {
         throw err;
       }
-      
+
       await new Promise(resolve => setTimeout(resolve, delay));
       delay *= 2; // Exponential backoff
     } finally {
@@ -109,7 +121,7 @@ export async function createMemoryGroup(groupData: CreateMemoryGroup): Promise<M
   try {
     const result = await query(`
       INSERT INTO memory_groups (
-        corner_id, title, description, is_locked, unlock_date, created_by_firebase_uid,
+        locket_id, title, description, is_locked, unlock_date, created_by_firebase_uid,
         lock_visibility, show_date_hint, show_image_preview, blur_percentage,
         unlock_hint, unlock_task, unlock_type, task_completed,
         show_title, show_description, show_media_count, show_creation_date
@@ -117,7 +129,7 @@ export async function createMemoryGroup(groupData: CreateMemoryGroup): Promise<M
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       RETURNING *
     `, [
-      groupData.corner_id,
+      groupData.locket_id,
       groupData.title,
       groupData.description,
       groupData.is_locked || false,
@@ -136,7 +148,7 @@ export async function createMemoryGroup(groupData: CreateMemoryGroup): Promise<M
       groupData.show_media_count || false,
       groupData.show_creation_date || false
     ])
-    
+
     return result.rows[0]
   } catch (error) {
     console.error('Error creating memory group:', error)
@@ -149,18 +161,18 @@ export async function createMemoryGroup(groupData: CreateMemoryGroup): Promise<M
  */
 export async function getAllMemoryGroups(cornerId?: string, includeMedia = true, includeLocked = false): Promise<MemoryGroup[]> {
   try {
-    // Build WHERE clause for corner and lock filtering
+    // Build WHERE clause for locket and lock filtering
     const conditions = []
-    
+
     const params = []
     let paramIndex = 1
 
     if (cornerId) {
-      conditions.push(`mg.corner_id = $${paramIndex}`)
+      conditions.push(`mg.locket_id = $${paramIndex}`)
       params.push(cornerId)
       paramIndex++
     }
-    
+
     if (!includeLocked) {
       conditions.push(`(
         (mg.is_locked = FALSE) 
@@ -168,20 +180,22 @@ export async function getAllMemoryGroups(cornerId?: string, includeMedia = true,
         OR (mg.unlock_date IS NOT NULL AND mg.unlock_date <= NOW())
       )`)
     }
-    
+
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
-    
+
     if (includeMedia) {
       const result = await query(`
         SELECT 
           mg.*,
+          lu.display_name as creator_name,
+          lu.avatar_url as creator_avatar_url,
           json_agg(
             json_build_object(
               'id', m.id,
               'filename', m.filename,
               'original_name', m.original_name,
-              's3_key', m.s3_key,
-              's3_url', m.s3_url,
+              'storage_key', m.storage_key,
+              'storage_url', m.storage_url,
               'file_type', m.file_type,
               'file_size', m.file_size,
               'width', m.width,
@@ -197,19 +211,25 @@ export async function getAllMemoryGroups(cornerId?: string, includeMedia = true,
           ) FILTER (WHERE m.id IS NOT NULL) as media_items,
           COUNT(m.id)::integer as media_count
         FROM memory_groups mg
-        LEFT JOIN media m ON mg.id = m.memory_group_id AND mg.corner_id = m.corner_id
+        LEFT JOIN media m ON mg.id = m.memory_group_id AND mg.locket_id = m.locket_id
+        LEFT JOIN locket_users lu ON mg.locket_id = lu.locket_id AND mg.created_by_firebase_uid = lu.firebase_uid
         ${whereClause}
-        GROUP BY mg.id
+        GROUP BY mg.id, lu.id
         ORDER BY mg.created_at DESC
       `, params)
       return result.rows
     } else {
       const result = await query(`
-        SELECT mg.*, COUNT(m.id)::integer as media_count
+        SELECT 
+          mg.*, 
+          lu.display_name as creator_name,
+          lu.avatar_url as creator_avatar_url,
+          COUNT(m.id)::integer as media_count
         FROM memory_groups mg
-        LEFT JOIN media m ON mg.id = m.memory_group_id AND mg.corner_id = m.corner_id
+        LEFT JOIN media m ON mg.id = m.memory_group_id AND mg.locket_id = m.locket_id
+        LEFT JOIN locket_users lu ON mg.locket_id = lu.locket_id AND mg.created_by_firebase_uid = lu.firebase_uid
         ${whereClause}
-        GROUP BY mg.id
+        GROUP BY mg.id, lu.id
         ORDER BY mg.created_at DESC
       `, params)
       return result.rows
@@ -234,8 +254,8 @@ export async function getMemoryGroupById(id: string, includeMedia = true): Promi
               'id', m.id,
               'filename', m.filename,
               'original_name', m.original_name,
-              's3_key', m.s3_key,
-              's3_url', m.s3_url,
+              'storage_key', m.storage_key,
+              'storage_url', m.storage_url,
               'file_type', m.file_type,
               'file_size', m.file_size,
               'width', m.width,
@@ -250,7 +270,7 @@ export async function getMemoryGroupById(id: string, includeMedia = true): Promi
             ) ORDER BY m.sort_order, m.created_at
           ) FILTER (WHERE m.id IS NOT NULL) as media_items
         FROM memory_groups mg
-        LEFT JOIN media m ON mg.id = m.memory_group_id AND mg.corner_id = m.corner_id
+        LEFT JOIN media m ON mg.id = m.memory_group_id AND mg.locket_id = m.locket_id
         WHERE mg.id = $1
         GROUP BY mg.id
       `, [id])
@@ -392,7 +412,7 @@ export async function updateMemoryGroup(id: string, updates: UpdateMemoryGroup):
       WHERE id = $${paramCount}
       RETURNING *
     `, values)
-    
+
     return result.rows[0] || null
   } catch (error) {
     console.error('Error updating memory group:', error)
@@ -410,7 +430,7 @@ export async function deleteMemoryGroup(id: string): Promise<boolean> {
       WHERE id = $1
       RETURNING id
     `, [id])
-    
+
     return result.rowCount > 0
   } catch (error) {
     console.error('Error deleting memory group:', error)
@@ -432,18 +452,18 @@ export async function getAllMedia(cornerId?: string): Promise<MediaItem[]> {
       ORDER BY m.created_at DESC
     `
     let values: any[] = []
-    
+
     if (cornerId) {
       query_text = `
         SELECT m.*, mg.title as memory_group_title 
         FROM media m
         LEFT JOIN memory_groups mg ON m.memory_group_id = mg.id
-        WHERE m.corner_id = $1
+        WHERE m.locket_id = $1
         ORDER BY m.created_at DESC
       `
       values = [cornerId]
     }
-    
+
     const result = await query(query_text, values)
     return result.rows
   } catch (error) {
@@ -464,12 +484,12 @@ export async function getMediaById(id: string, cornerId?: string): Promise<Media
       WHERE m.id = $1
     `
     let values = [id]
-    
+
     if (cornerId) {
-      query_text += ` AND m.corner_id = $2`
+      query_text += ` AND m.locket_id = $2`
       values.push(cornerId)
     }
-    
+
     const result = await query(query_text, values)
     return result.rows[0] || null
   } catch (error) {
@@ -485,17 +505,17 @@ export async function createMediaItem(mediaData: CreateMediaItem): Promise<Media
   try {
     const result = await query(`
       INSERT INTO media (
-        corner_id, memory_group_id, filename, original_name, s3_key, s3_url, file_type, file_size,
+        locket_id, memory_group_id, filename, original_name, storage_key, storage_url, file_type, file_size,
         width, height, duration, title, note, date_taken, sort_order, uploaded_by_firebase_uid
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *
     `, [
-      mediaData.corner_id,
+      mediaData.locket_id,
       mediaData.memory_group_id,
       mediaData.filename,
       mediaData.original_name,
-      mediaData.s3_key,
-      mediaData.s3_url,
+      mediaData.storage_key,
+      mediaData.storage_url,
       mediaData.file_type,
       mediaData.file_size,
       mediaData.width,
@@ -507,7 +527,7 @@ export async function createMediaItem(mediaData: CreateMediaItem): Promise<Media
       mediaData.sort_order || 0,
       mediaData.uploaded_by_firebase_uid,
     ])
-    
+
     return result.rows[0]
   } catch (error) {
     console.error('Error creating media item:', error)
@@ -559,14 +579,14 @@ export async function updateMediaItem(id: string, updates: UpdateMediaItem): Pro
       values.push(updates.original_name)
       paramCount++
     }
-    if (updates.s3_key !== undefined) {
-      setParts.push(`s3_key = $${paramCount}`)
-      values.push(updates.s3_key)
+    if (updates.storage_key !== undefined) {
+      setParts.push(`storage_key = $${paramCount}`)
+      values.push(updates.storage_key)
       paramCount++
     }
-    if (updates.s3_url !== undefined) {
-      setParts.push(`s3_url = $${paramCount}`)
-      values.push(updates.s3_url)
+    if (updates.storage_url !== undefined) {
+      setParts.push(`storage_url = $${paramCount}`)
+      values.push(updates.storage_url)
       paramCount++
     }
     if (updates.file_type !== undefined) {
@@ -607,7 +627,7 @@ export async function updateMediaItem(id: string, updates: UpdateMediaItem): Pro
       WHERE id = $${paramCount}
       RETURNING *
     `, values)
-    
+
     return result.rows[0] || null
   } catch (error) {
     console.error('Error updating media item:', error)
@@ -625,7 +645,7 @@ export async function deleteMediaItem(id: string): Promise<boolean> {
       WHERE id = $1
       RETURNING id
     `, [id])
-    
+
     return result.rowCount > 0
   } catch (error) {
     console.error('Error deleting media item:', error)
@@ -643,7 +663,7 @@ export async function getMediaByType(fileTypePrefix: string): Promise<MediaItem[
       WHERE file_type LIKE $1
       ORDER BY created_at DESC
     `, [`${fileTypePrefix}%`])
-    
+
     return result.rows
   } catch (error) {
     console.error('Error fetching media by type:', error)
@@ -661,7 +681,7 @@ export async function searchMedia(searchTerm: string): Promise<MediaItem[]> {
       WHERE title ILIKE $1 OR note ILIKE $1
       ORDER BY created_at DESC
     `, [`%${searchTerm}%`])
-    
+
     return result.rows
   } catch (error) {
     console.error('Error searching media:', error)
@@ -681,7 +701,7 @@ export async function createSession(sessionToken: string, expiresAt: Date): Prom
       VALUES ($1, $2)
       RETURNING *
     `, [sessionToken, expiresAt])
-    
+
     return result.rows[0]
   } catch (error) {
     console.error('Error creating session:', error)
@@ -698,7 +718,7 @@ export async function getSessionByToken(sessionToken: string): Promise<Session |
       SELECT * FROM sessions 
       WHERE session_token = $1 AND expires_at > NOW()
     `, [sessionToken])
-    
+
     return result.rows[0] || null
   } catch (error) {
     console.error('Error fetching session:', error)
@@ -716,7 +736,7 @@ export async function deleteSession(sessionToken: string): Promise<boolean> {
       WHERE session_token = $1
       RETURNING id
     `, [sessionToken])
-    
+
     return result.rowCount > 0
   } catch (error) {
     console.error('Error deleting session:', error)
@@ -733,7 +753,7 @@ export async function cleanupExpiredSessions(): Promise<number> {
       DELETE FROM sessions 
       WHERE expires_at < NOW()
     `)
-    
+
     return result.rowCount
   } catch (error) {
     console.error('Error cleaning up expired sessions:', error)
@@ -745,13 +765,13 @@ export async function cleanupExpiredSessions(): Promise<number> {
  * Get database health status
  */
 // =============================================================================
-// CORNER MANAGEMENT FUNCTIONS
+// LOCKET MANAGEMENT FUNCTIONS
 // =============================================================================
 
 /**
  * Get all corners for a user
  */
-export async function getUserCorners(firebaseUid: string): Promise<Corner[]> {
+export async function getUserLockets(firebaseUid: string): Promise<Corner[]> {
   try {
     const result = await query(`
       SELECT 
@@ -759,15 +779,15 @@ export async function getUserCorners(firebaseUid: string): Promise<Corner[]> {
         cu.role as user_role,
         COUNT(DISTINCT cu2.id) as member_count,
         COUNT(DISTINCT m.id) as media_count
-      FROM corners c
-      JOIN corner_users cu ON c.id = cu.corner_id
-      LEFT JOIN corner_users cu2 ON c.id = cu2.corner_id
-      LEFT JOIN media m ON c.id = m.corner_id
+      FROM lockets c
+      JOIN locket_users cu ON c.id = cu.locket_id
+      LEFT JOIN locket_users cu2 ON c.id = cu2.locket_id
+      LEFT JOIN media m ON c.id = m.locket_id
       WHERE cu.firebase_uid = $1
       GROUP BY c.id, cu.role
       ORDER BY c.created_at DESC
     `, [firebaseUid])
-    
+
     return result.rows.map((row: any) => ({
       ...row,
       member_count: parseInt(row.member_count) || 0,
@@ -781,23 +801,23 @@ export async function getUserCorners(firebaseUid: string): Promise<Corner[]> {
 }
 
 /**
- * Get corner by ID with user permissions
+ * Get locket by ID with user permissions
  */
-export async function getCornerById(id: string, firebaseUid?: string): Promise<Corner | null> {
+export async function getLocketById(id: string, firebaseUid?: string): Promise<Corner | null> {
   try {
     let query_text = `
       SELECT 
         c.*,
         COUNT(DISTINCT cu.id) as member_count,
         COUNT(DISTINCT m.id) as media_count
-      FROM corners c
-      LEFT JOIN corner_users cu ON c.id = cu.corner_id
-      LEFT JOIN media m ON c.id = m.corner_id
+      FROM lockets c
+      LEFT JOIN locket_users cu ON c.id = cu.locket_id
+      LEFT JOIN media m ON c.id = m.locket_id
       WHERE c.id = $1
       GROUP BY c.id
     `
     let values = [id]
-    
+
     if (firebaseUid) {
       query_text = `
         SELECT 
@@ -805,20 +825,20 @@ export async function getCornerById(id: string, firebaseUid?: string): Promise<C
           cu.role as user_role,
           COUNT(DISTINCT cu2.id) as member_count,
           COUNT(DISTINCT m.id) as media_count
-        FROM corners c
-        LEFT JOIN corner_users cu ON c.id = cu.corner_id AND cu.firebase_uid = $2
-        LEFT JOIN corner_users cu2 ON c.id = cu2.corner_id
-        LEFT JOIN media m ON c.id = m.corner_id
+        FROM lockets c
+        LEFT JOIN locket_users cu ON c.id = cu.locket_id AND cu.firebase_uid = $2
+        LEFT JOIN locket_users cu2 ON c.id = cu2.locket_id
+        LEFT JOIN media m ON c.id = m.locket_id
         WHERE c.id = $1
         GROUP BY c.id, cu.role
       `
       values = [id, firebaseUid]
     }
-    
+
     const result = await query(query_text, values)
-    
+
     if (result.rows.length === 0) return null
-    
+
     const row = result.rows[0]
     return {
       ...row,
@@ -827,30 +847,30 @@ export async function getCornerById(id: string, firebaseUid?: string): Promise<C
       is_user_admin: row.user_role === 'admin'
     }
   } catch (error) {
-    console.error('Error getting corner by ID:', error)
-    throw new Error('Failed to get corner')
+    console.error('Error getting locket by ID:', error)
+    throw new Error('Failed to get locket')
   }
 }
 
 /**
- * Get corner by slug (for public access)
+ * Get locket by slug (for public access)
  */
-export async function getCornerBySlug(slug: string): Promise<Corner | null> {
+export async function getLocketBySlug(slug: string): Promise<Corner | null> {
   try {
     const result = await query(`
       SELECT 
         c.*,
         COUNT(DISTINCT cu.id) as member_count,
         COUNT(DISTINCT m.id) as media_count
-      FROM corners c
-      LEFT JOIN corner_users cu ON c.id = cu.corner_id
-      LEFT JOIN media m ON c.id = m.corner_id
+      FROM lockets c
+      LEFT JOIN locket_users cu ON c.id = cu.locket_id
+      LEFT JOIN media m ON c.id = m.locket_id
       WHERE c.slug = $1
       GROUP BY c.id
     `, [slug])
-    
+
     if (result.rows.length === 0) return null
-    
+
     const row = result.rows[0]
     return {
       ...row,
@@ -858,27 +878,27 @@ export async function getCornerBySlug(slug: string): Promise<Corner | null> {
       media_count: parseInt(row.media_count) || 0
     }
   } catch (error) {
-    console.error('Error getting corner by slug:', error)
-    throw new Error('Failed to get corner')
+    console.error('Error getting locket by slug:', error)
+    throw new Error('Failed to get locket')
   }
 }
 
 /**
- * Create a new corner
+ * Create a new locket
  */
-export async function createCorner(data: CreateCorner): Promise<Corner> {
+export async function createLocket(data: CreateCorner): Promise<Corner> {
   const client = await pool.connect()
-  
+
   try {
     await client.query('BEGIN')
-    
+
     // Generate unique slug and invite code
-    const slug = await generateCornerSlug(data.name, client)
+    const slug = await generateLocketSlug(data.name, client)
     const inviteCode = await generateInviteCode(client)
-    
-    // Create the corner
-    const cornerResult = await client.query(`
-      INSERT INTO corners (name, description, slug, invite_code, is_public, share_password, admin_firebase_uid)
+
+    // Create the locket
+    const locketResult = await client.query(`
+      INSERT INTO lockets (name, description, slug, invite_code, is_public, share_password, admin_firebase_uid)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `, [
@@ -890,19 +910,19 @@ export async function createCorner(data: CreateCorner): Promise<Corner> {
       data.share_password || null,
       data.admin_firebase_uid
     ])
-    
-    const corner = cornerResult.rows[0]
-    
-    // Add the admin as a corner user
+
+    const locket = locketResult.rows[0]
+
+    // Add the admin as a locket user
     await client.query(`
-      INSERT INTO corner_users (corner_id, firebase_uid, role, can_upload, can_edit_others_media, can_manage_corner)
+      INSERT INTO locket_users (locket_id, firebase_uid, role, can_upload, can_edit_others_media, can_manage_locket)
       VALUES ($1, $2, 'admin', true, true, true)
-    `, [corner.id, data.admin_firebase_uid])
-    
+    `, [locket.id, data.admin_firebase_uid])
+
     await client.query('COMMIT')
-    
+
     return {
-      ...corner,
+      ...locket,
       member_count: 1,
       media_count: 0,
       user_role: 'admin',
@@ -910,147 +930,147 @@ export async function createCorner(data: CreateCorner): Promise<Corner> {
     }
   } catch (error) {
     await client.query('ROLLBACK')
-    console.error('Error creating corner:', error)
-    throw new Error('Failed to create corner')
+    console.error('Error creating locket:', error)
+    throw new Error('Failed to create locket')
   } finally {
     client.release()
   }
 }
 
 /**
- * Update corner
+ * Update locket
  */
-export async function updateCorner(id: string, updates: UpdateCorner, firebaseUid: string): Promise<Corner> {
+export async function updateLocket(id: string, updates: UpdateCorner, firebaseUid: string): Promise<Corner> {
   try {
     // First check if user has permission
     const permission = await query(`
       SELECT cu.role 
-      FROM corner_users cu 
-      WHERE cu.corner_id = $1 AND cu.firebase_uid = $2 AND cu.can_manage_corner = true
+      FROM locket_users cu 
+      WHERE cu.locket_id = $1 AND cu.firebase_uid = $2 AND cu.can_manage_locket = true
     `, [id, firebaseUid])
-    
+
     if (permission.rows.length === 0) {
       throw new Error('Permission denied')
     }
-    
+
     const setParts: string[] = []
     const values: any[] = []
     let paramCount = 1
-    
+
     if (updates.name !== undefined) {
       setParts.push(`name = $${paramCount}`)
       values.push(updates.name)
       paramCount++
     }
-    
+
     if (updates.description !== undefined) {
       setParts.push(`description = $${paramCount}`)
       values.push(updates.description)
       paramCount++
     }
-    
+
     if (updates.is_public !== undefined) {
       setParts.push(`is_public = $${paramCount}`)
       values.push(updates.is_public)
       paramCount++
     }
-    
+
     if (updates.share_password !== undefined) {
       setParts.push(`share_password = $${paramCount}`)
       values.push(updates.share_password)
       paramCount++
     }
-    
+
     if (setParts.length === 0) {
       throw new Error('No valid updates provided')
     }
-    
+
     setParts.push(`updated_at = NOW()`)
     values.push(id)
-    
+
     const result = await query(`
-      UPDATE corners 
+      UPDATE lockets 
       SET ${setParts.join(', ')}
       WHERE id = $${paramCount}
       RETURNING *
     `, values)
-    
+
     if (result.rows.length === 0) {
-      throw new Error('Corner not found')
+      throw new Error('Locket not found')
     }
-    
+
     return result.rows[0]
   } catch (error) {
-    console.error('Error updating corner:', error)
+    console.error('Error updating locket:', error)
     throw error
   }
 }
 
 /**
- * Delete corner (admin only)
+ * Delete locket (admin only)
  */
-export async function deleteCorner(id: string, firebaseUid: string): Promise<void> {
+export async function deleteLocket(id: string, firebaseUid: string): Promise<void> {
   try {
     // Check if user is admin
     const permission = await query(`
       SELECT c.admin_firebase_uid 
-      FROM corners c 
+      FROM lockets c 
       WHERE c.id = $1 AND c.admin_firebase_uid = $2
     `, [id, firebaseUid])
-    
+
     if (permission.rows.length === 0) {
-      throw new Error('Permission denied - only corner admin can delete')
+      throw new Error('Permission denied - only locket admin can delete')
     }
-    
-    const result = await query('DELETE FROM corners WHERE id = $1', [id])
-    
+
+    const result = await query('DELETE FROM lockets WHERE id = $1', [id])
+
     if (result.rowCount === 0) {
-      throw new Error('Corner not found')
+      throw new Error('Locket not found')
     }
   } catch (error) {
-    console.error('Error deleting corner:', error)
+    console.error('Error deleting locket:', error)
     throw error
   }
 }
 
 // =============================================================================
-// CORNER USER FUNCTIONS
+// LOCKET USER FUNCTIONS
 // =============================================================================
 
 /**
- * Get users in a corner
+ * Get users in a locket
  */
-export async function getCornerUsers(cornerId: string): Promise<CornerUser[]> {
+export async function getLocketUsers(cornerId: string): Promise<CornerUser[]> {
   try {
     const result = await query(`
       SELECT cu.*, c.name as corner_name
-      FROM corner_users cu
-      LEFT JOIN corners c ON cu.corner_id = c.id
-      WHERE cu.corner_id = $1
+      FROM locket_users cu
+      LEFT JOIN lockets c ON cu.locket_id = c.id
+      WHERE cu.locket_id = $1
       ORDER BY cu.role DESC, cu.joined_at ASC
     `, [cornerId])
-    
+
     return result.rows
   } catch (error) {
-    console.error('Error getting corner users:', error)
-    throw new Error('Failed to get corner users')
+    console.error('Error getting locket users:', error)
+    throw new Error('Failed to get locket users')
   }
 }
 
 /**
- * Add user to corner
+ * Add user to locket
  */
-export async function addUserToCorner(data: CreateCornerUser): Promise<CornerUser> {
+export async function addUserToLocket(data: CreateCornerUser): Promise<CornerUser> {
   try {
     const result = await query(`
-      INSERT INTO corner_users (
-        corner_id, firebase_uid, display_name, email, avatar_url, 
-        role, can_upload, can_edit_others_media, can_manage_corner
+      INSERT INTO locket_users (
+        locket_id, firebase_uid, display_name, email, avatar_url, 
+        role, can_upload, can_edit_others_media, can_manage_locket
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
     `, [
-      data.corner_id,
+      data.locket_id,
       data.firebase_uid,
       data.display_name || null,
       data.email || null,
@@ -1058,106 +1078,106 @@ export async function addUserToCorner(data: CreateCornerUser): Promise<CornerUse
       data.role || 'participant',
       data.can_upload !== false,
       data.can_edit_others_media || false,
-      data.can_manage_corner || false
+      data.can_manage_locket || false
     ])
-    
+
     return result.rows[0]
   } catch (error) {
-    console.error('Error adding user to corner:', error)
+    console.error('Error adding user to locket:', error)
     if (error instanceof Error && 'code' in error && (error as any).code === '23505') { // unique constraint violation
-      throw new Error('User is already a member of this corner')
+      throw new Error('User is already a member of this locket')
     }
-    throw new Error('Failed to add user to corner')
+    throw new Error('Failed to add user to locket')
   }
 }
 
 /**
- * Update corner user permissions
+ * Update locket user permissions
  */
-export async function updateCornerUser(
-  cornerId: string, 
-  userId: string, 
+export async function updateLocketUser(
+  cornerId: string,
+  userId: string,
   updates: UpdateCornerUser,
   requestingUserUid: string
 ): Promise<CornerUser> {
   try {
     // Check if requesting user has permission
     const permission = await query(`
-      SELECT cu.role, cu.can_manage_corner
-      FROM corner_users cu 
-      WHERE cu.corner_id = $1 AND cu.firebase_uid = $2
+      SELECT cu.role, cu.can_manage_locket
+      FROM locket_users cu 
+      WHERE cu.locket_id = $1 AND cu.firebase_uid = $2
     `, [cornerId, requestingUserUid])
-    
-    if (permission.rows.length === 0 || !permission.rows[0].can_manage_corner) {
+
+    if (permission.rows.length === 0 || !permission.rows[0].can_manage_locket) {
       throw new Error('Permission denied')
     }
-    
+
     const setParts: string[] = []
     const values: any[] = []
     let paramCount = 1
-    
+
     if (updates.role !== undefined) {
       setParts.push(`role = $${paramCount}`)
       values.push(updates.role)
       paramCount++
     }
-    
+
     if (updates.can_upload !== undefined) {
       setParts.push(`can_upload = $${paramCount}`)
       values.push(updates.can_upload)
       paramCount++
     }
-    
+
     if (updates.can_edit_others_media !== undefined) {
       setParts.push(`can_edit_others_media = $${paramCount}`)
       values.push(updates.can_edit_others_media)
       paramCount++
     }
-    
-    if (updates.can_manage_corner !== undefined) {
-      setParts.push(`can_manage_corner = $${paramCount}`)
-      values.push(updates.can_manage_corner)
+
+    if (updates.can_manage_locket !== undefined) {
+      setParts.push(`can_manage_locket = $${paramCount}`)
+      values.push(updates.can_manage_locket)
       paramCount++
     }
-    
+
     if (updates.display_name !== undefined) {
       setParts.push(`display_name = $${paramCount}`)
       values.push(updates.display_name)
       paramCount++
     }
-    
+
     if (updates.avatar_url !== undefined) {
       setParts.push(`avatar_url = $${paramCount}`)
       values.push(updates.avatar_url)
       paramCount++
     }
-    
+
     if (setParts.length === 0) {
       throw new Error('No valid updates provided')
     }
-    
+
     values.push(cornerId, userId)
-    
+
     const result = await query(`
-      UPDATE corner_users 
+      UPDATE locket_users 
       SET ${setParts.join(', ')}, last_active_at = NOW()
-      WHERE corner_id = $${paramCount} AND firebase_uid = $${paramCount + 1}
+      WHERE locket_id = $${paramCount} AND firebase_uid = $${paramCount + 1}
       RETURNING *
     `, values)
-    
+
     if (result.rows.length === 0) {
-      throw new Error('Corner user not found')
+      throw new Error('Locket user not found')
     }
-    
+
     return result.rows[0]
   } catch (error) {
-    console.error('Error updating corner user:', error)
+    console.error('Error updating locket user:', error)
     throw error
   }
 }
 
 /**
- * Update user role in corner
+ * Update user role in locket
  */
 export async function updateUserRole(
   cornerId: string,
@@ -1166,16 +1186,16 @@ export async function updateUserRole(
 ): Promise<CornerUser> {
   try {
     const result = await query(`
-      UPDATE corner_users 
+      UPDATE locket_users 
       SET role = $3, last_active_at = NOW()
-      WHERE corner_id = $1 AND id = $2
+      WHERE locket_id = $1 AND id = $2
       RETURNING *
     `, [cornerId, userId, role])
-    
+
     if (result.rows.length === 0) {
-      throw new Error('Corner user not found')
+      throw new Error('Locket user not found')
     }
-    
+
     return result.rows[0]
   } catch (error) {
     console.error('Error updating user role:', error)
@@ -1184,11 +1204,11 @@ export async function updateUserRole(
 }
 
 /**
- * Remove user from corner
+ * Remove user from locket
  */
-export async function removeUserFromCorner(
-  cornerId: string, 
-  userId: string, 
+export async function removeUserFromLocket(
+  cornerId: string,
+  userId: string,
   requestingUserUid?: string
 ): Promise<boolean> {
   try {
@@ -1196,102 +1216,102 @@ export async function removeUserFromCorner(
     const permission = await query(`
       SELECT 
         c.admin_firebase_uid,
-        cu.can_manage_corner
-      FROM corners c
-      LEFT JOIN corner_users cu ON c.id = cu.corner_id AND cu.firebase_uid = $2
+        cu.can_manage_locket
+      FROM lockets c
+      LEFT JOIN locket_users cu ON c.id = cu.locket_id AND cu.firebase_uid = $2
       WHERE c.id = $1
     `, [cornerId, requestingUserUid])
-    
+
     if (permission.rows.length === 0) {
-      throw new Error('Corner not found')
+      throw new Error('Locket not found')
     }
-    
-    const { admin_firebase_uid, can_manage_corner } = permission.rows[0]
-    
+
+    const { admin_firebase_uid, can_manage_locket } = permission.rows[0]
+
     // Can't remove the admin
     if (userId === admin_firebase_uid) {
-      throw new Error('Cannot remove corner admin')
+      throw new Error('Cannot remove locket admin')
     }
-    
-    // Check if user has permission (admin or can_manage_corner, or removing themselves)
-    if (requestingUserUid !== admin_firebase_uid && 
-        !can_manage_corner && 
-        requestingUserUid !== userId) {
+
+    // Check if user has permission (admin or can_manage_locket, or removing themselves)
+    if (requestingUserUid !== admin_firebase_uid &&
+      !can_manage_locket &&
+      requestingUserUid !== userId) {
       throw new Error('Permission denied')
     }
-    
+
     const result = await query(`
-      DELETE FROM corner_users 
-      WHERE corner_id = $1 AND id = $2
+      DELETE FROM locket_users 
+      WHERE locket_id = $1 AND id = $2
     `, [cornerId, userId])
-    
+
     return result.rowCount > 0
   } catch (error) {
-    console.error('Error removing user from corner:', error)
+    console.error('Error removing user from locket:', error)
     return false
   }
 }
 
 // =============================================================================
-// CORNER INVITES
+// LOCKET INVITES
 // =============================================================================
 
 /**
- * Get all invites for a corner
+ * Get all invites for a locket
  */
-export async function getCornerInvites(cornerId: string): Promise<CornerInvite[]> {
+export async function getLocketInvites(cornerId: string): Promise<CornerInvite[]> {
   try {
     const result = await query(`
       SELECT 
         ci.*,
         cu.display_name as invited_by_name,
         cu.email as invited_by_email
-      FROM corner_invites ci
-      LEFT JOIN corner_users cu ON ci.invited_by_firebase_uid = cu.firebase_uid
-      WHERE ci.corner_id = $1
+      FROM locket_invites ci
+      LEFT JOIN locket_users cu ON ci.invited_by_firebase_uid = cu.firebase_uid
+      WHERE ci.locket_id = $1
       ORDER BY ci.created_at DESC
     `, [cornerId])
 
     return result.rows
   } catch (error) {
-    console.error('Error fetching corner invites:', error)
-    throw new Error('Failed to get corner invites')
+    console.error('Error fetching locket invites:', error)
+    throw new Error('Failed to get locket invites')
   }
 }
 
 /**
- * Create a corner invite
+ * Create a locket invite
  */
-export async function createCornerInvite(data: CreateCornerInvite): Promise<CornerInvite> {
+export async function createLocketInvite(data: CreateCornerInvite): Promise<CornerInvite> {
   try {
     // Check if user is already a member or has pending invite
     const existingInvite = await query(`
-      SELECT id FROM corner_invites 
-      WHERE corner_id = $1 AND email = $2 AND status IN ('pending', 'accepted')
-    `, [data.corner_id, data.email])
-    
+      SELECT id FROM locket_invites 
+      WHERE locket_id = $1 AND email = $2 AND status IN ('pending', 'accepted')
+    `, [data.locket_id, data.email])
+
     const existingMember = await query(`
-      SELECT id FROM corner_users 
-      WHERE corner_id = $1 AND email = $2
-    `, [data.corner_id, data.email])
-    
+      SELECT id FROM locket_users 
+      WHERE locket_id = $1 AND email = $2
+    `, [data.locket_id, data.email])
+
     if (existingInvite.rows.length > 0 || existingMember.rows.length > 0) {
       throw new Error('User already invited or is already a member')
     }
-    
+
     // Generate unique invite token
     const crypto = require('crypto')
     const inviteToken = crypto.randomBytes(32).toString('hex')
-    
+
     const result = await query(`
-      INSERT INTO corner_invites (
-        corner_id, email, role, can_upload, can_edit_others_media, status, invite_token,
+      INSERT INTO locket_invites (
+        locket_id, email, role, can_upload, can_edit_others_media, status, invite_token,
         invited_by_firebase_uid, expires_at
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
     `, [
-      data.corner_id,
+      data.locket_id,
       data.email,
       data.role,
       data.can_upload !== false,
@@ -1304,7 +1324,7 @@ export async function createCornerInvite(data: CreateCornerInvite): Promise<Corn
 
     return result.rows[0]
   } catch (error) {
-    console.error('Error creating corner invite:', error)
+    console.error('Error creating locket invite:', error)
     throw error
   }
 }
@@ -1316,8 +1336,8 @@ export async function getCornerInviteByToken(token: string): Promise<CornerInvit
   try {
     const result = await query(`
       SELECT ci.*, c.name as corner_name
-      FROM corner_invites ci
-      JOIN corners c ON ci.corner_id = c.id
+      FROM locket_invites ci
+      JOIN lockets c ON ci.locket_id = c.id
       WHERE ci.invite_token = $1 AND ci.status = 'pending' AND ci.expires_at > NOW()
     `, [token])
 
@@ -1330,51 +1350,51 @@ export async function getCornerInviteByToken(token: string): Promise<CornerInvit
 
 
 /**
- * Revoke a corner invite
+ * Revoke a locket invite
  */
 export async function revokeCornerInvite(inviteId: string, firebaseUid: string): Promise<void> {
   try {
     const result = await query(`
-      UPDATE corner_invites 
+      UPDATE locket_invites 
       SET status = 'revoked'
       WHERE id = $1 AND invited_by_firebase_uid = $2
     `, [inviteId, firebaseUid])
-    
+
     if (result.rowCount === 0) {
       throw new Error('Invite not found or permission denied')
     }
   } catch (error) {
-    console.error('Error revoking corner invite:', error)
+    console.error('Error revoking locket invite:', error)
     throw error
   }
 }
 
 /**
- * Get invite by corner invite code and email (public access)
+ * Get invite by locket invite code and email (public access)
  */
-export async function getInviteByCodeAndEmail(inviteCode: string, email: string): Promise<CornerInvite & { corner?: any }> {
+export async function getInviteByCodeAndEmail(inviteCode: string, email: string): Promise<CornerInvite & { locket?: any }> {
   try {
     const result = await query(`
       SELECT 
         ci.*,
         c.name as corner_name,
         c.description as corner_description
-      FROM corner_invites ci
-      JOIN corners c ON ci.corner_id = c.id
+      FROM locket_invites ci
+      JOIN lockets c ON ci.locket_id = c.id
       WHERE c.invite_code = $1 AND ci.email = $2 AND ci.status = 'pending'
       ORDER BY ci.created_at DESC
       LIMIT 1
     `, [inviteCode, email])
-    
+
     if (result.rows.length === 0) {
       throw new Error('Invite not found')
     }
-    
+
     const invite = result.rows[0]
     return {
       ...invite,
-      corner: {
-        id: invite.corner_id,
+      locket: {
+        id: invite.locket_id,
         name: invite.corner_name,
         description: invite.corner_description
       }
@@ -1386,88 +1406,88 @@ export async function getInviteByCodeAndEmail(inviteCode: string, email: string)
 }
 
 /**
- * Accept corner invite
+ * Accept locket invite
  */
 export async function acceptCornerInvite(
-  inviteId: string, 
-  firebaseUid: string, 
-  email: string, 
+  inviteId: string,
+  firebaseUid: string,
+  email: string,
   displayName: string
 ): Promise<CornerUser> {
   const client = await pool.connect()
-  
+
   try {
     await client.query('BEGIN')
-    
+
     // Get the invite
     const inviteResult = await client.query(`
-      SELECT ci.*, c.id as corner_id
-      FROM corner_invites ci
-      JOIN corners c ON ci.corner_id = c.id
+      SELECT ci.*, c.id as locket_id
+      FROM locket_invites ci
+      JOIN lockets c ON ci.locket_id = c.id
       WHERE ci.id = $1 AND ci.status = 'pending'
     `, [inviteId])
-    
+
     if (inviteResult.rows.length === 0) {
       throw new Error('Invite not found or already processed')
     }
-    
+
     const invite = inviteResult.rows[0]
-    
+
     // Check if email matches
     if (invite.email.toLowerCase() !== email.toLowerCase()) {
       throw new Error('Permission denied - email mismatch')
     }
-    
+
     // Check if user is already a member
     const existingUser = await client.query(`
-      SELECT id FROM corner_users 
-      WHERE corner_id = $1 AND firebase_uid = $2
-    `, [invite.corner_id, firebaseUid])
-    
+      SELECT id FROM locket_users 
+      WHERE locket_id = $1 AND firebase_uid = $2
+    `, [invite.locket_id, firebaseUid])
+
     if (existingUser.rows.length > 0) {
       // Mark invite as accepted and return existing user
       await client.query(`
-        UPDATE corner_invites 
+        UPDATE locket_invites 
         SET status = 'accepted', accepted_at = NOW()
         WHERE id = $1
       `, [inviteId])
-      
+
       await client.query('COMMIT')
       return existingUser.rows[0]
     }
-    
-    // Add user to corner
+
+    // Add user to locket
     const userResult = await client.query(`
-      INSERT INTO corner_users (
-        corner_id, firebase_uid, display_name, email, 
-        role, can_upload, can_edit_others_media, can_manage_corner
+      INSERT INTO locket_users (
+        locket_id, firebase_uid, display_name, email, 
+        role, can_upload, can_edit_others_media, can_manage_locket
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     `, [
-      invite.corner_id,
+      invite.locket_id,
       firebaseUid,
       displayName,
       email,
       invite.role,
       invite.can_upload,
       invite.can_edit_others_media,
-      invite.role === 'admin' // Admins can manage corner
+      invite.role === 'admin' // Admins can manage locket
     ])
-    
+
     // Mark invite as accepted
     await client.query(`
-      UPDATE corner_invites 
+      UPDATE locket_invites 
       SET status = 'accepted', accepted_at = NOW()
       WHERE id = $1
     `, [inviteId])
-    
+
     await client.query('COMMIT')
     return userResult.rows[0]
-    
+
   } catch (error) {
     await client.query('ROLLBACK')
-    console.error('Error accepting corner invite:', error)
+    console.error('Error accepting locket invite:', error)
     throw error
   } finally {
     client.release()
@@ -1485,17 +1505,17 @@ export async function getPendingInvitesForEmail(email: string): Promise<CornerIn
         c.name as corner_name,
         c.description as corner_description,
         cu.display_name as invited_by_name
-      FROM corner_invites ci
-      JOIN corners c ON ci.corner_id = c.id
-      LEFT JOIN corner_users cu ON ci.invited_by_firebase_uid = cu.firebase_uid AND cu.corner_id = ci.corner_id
+      FROM locket_invites ci
+      JOIN lockets c ON ci.locket_id = c.id
+      LEFT JOIN locket_users cu ON ci.invited_by_firebase_uid = cu.firebase_uid AND cu.locket_id = ci.locket_id
       WHERE ci.email = $1 AND ci.status = 'pending' AND ci.expires_at > NOW()
       ORDER BY ci.created_at DESC
     `, [email.toLowerCase()])
 
     return result.rows.map((row: any) => ({
       ...row,
-      corner: {
-        id: row.corner_id,
+      locket: {
+        id: row.locket_id,
         name: row.corner_name,
         description: row.corner_description
       }
@@ -1511,11 +1531,11 @@ export async function getPendingInvitesForEmail(email: string): Promise<CornerIn
 // =============================================================================
 
 /**
- * Generate unique corner slug
+ * Generate unique locket slug
  */
-async function generateCornerSlug(name: string, client?: PoolClient): Promise<string> {
+async function generateLocketSlug(name: string, client?: PoolClient): Promise<string> {
   const db = client || pool
-  
+
   // Generate base slug from name
   let baseSlug = name
     .toLowerCase()
@@ -1523,21 +1543,21 @@ async function generateCornerSlug(name: string, client?: PoolClient): Promise<st
     .replace(/\s+/g, '-')
     .trim()
     .replace(/^-+|-+$/g, '')
-  
-  if (!baseSlug) baseSlug = 'corner'
-  
+
+  if (!baseSlug) baseSlug = 'locket'
+
   // Check for uniqueness and add counter if needed
   let finalSlug = baseSlug
   let counter = 0
-  
+
   while (true) {
-    const result = await db.query('SELECT id FROM corners WHERE slug = $1', [finalSlug])
+    const result = await db.query('SELECT id FROM lockets WHERE slug = $1', [finalSlug])
     if (result.rows.length === 0) break
-    
+
     counter++
     finalSlug = `${baseSlug}-${counter}`
   }
-  
+
   return finalSlug
 }
 
@@ -1546,12 +1566,12 @@ async function generateCornerSlug(name: string, client?: PoolClient): Promise<st
  */
 async function generateInviteCode(client?: PoolClient): Promise<string> {
   const db = client || pool
-  
+
   while (true) {
     // Generate 8-character alphanumeric code
     const code = Math.random().toString(36).substring(2, 10).toUpperCase()
-    
-    const result = await db.query('SELECT id FROM corners WHERE invite_code = $1', [code])
+
+    const result = await db.query('SELECT id FROM lockets WHERE invite_code = $1', [code])
     if (result.rows.length === 0) return code
   }
 }
@@ -1568,6 +1588,15 @@ export async function getDatabaseHealth(): Promise<{ status: string; timestamp: 
     throw new Error('Database is unhealthy')
   }
 }
+
+// =============================================================================
+// BACKWARDS COMPATIBILITY ALIASES (Corner → Locket)
+// =============================================================================
+
+// Invite function aliases
+export const revokeLocketInvite = revokeCornerInvite
+export const acceptLocketInvite = acceptCornerInvite
+export const getInviteByLocketCodeAndEmail = getInviteByCodeAndEmail
 
 // Graceful shutdown
 process.on('SIGINT', () => {

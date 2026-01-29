@@ -1,38 +1,27 @@
-Tech Stack 👩‍💻
-This project uses a modern, containerized tech stack, perfect for running on a local Docker host. It's designed for straightforward development, deployment, and maintenance.
+# Tech Stack 👩‍💻
+
+**Twofold** leverages a modern, containerized stack designed for intimacy and performance.
 
 ## Frontend
-Framework: Next.js (App Router). It's great for building a fast, modern, and interactive user interface.
-
-Styling: Tailwind CSS for creating the cute, custom design without a lot of custom CSS.
-
-Component Library: Shadcn UI for a set of beautifully designed, accessible, and reusable components like modals, buttons, and input fields.
+* **Framework:** Next.js (App Router).
+* **Styling:** Tailwind CSS with a custom config for the **Twofold** theme.
+    * **Fonts:** *Playfair Display* (Headings) and *Lato* (Body), imported via `next/font`.
+    * **Colors:** Custom utility classes for `bg-blush`, `text-truffle`, `bg-deep-rose`.
+* **Components:** Shadcn UI, customized to replace default slate/zinc grays with warm rose and truffle tones.
+* **Maps:** Leaflet for the "Our Journey" visualization.
 
 ## Backend
-Runtime: Node.js with Next.js API Routes. The backend logic will be handled directly within the Next.js application for a simplified, monolithic structure.
+* **Runtime:** Node.js (via Next.js API Routes).
+* **Database & Storage:**
+    * **Database:** PostgreSQL. Stores users, memories (metadata), milestones, and shared lists. Run in a dedicated container.
+    * **Object Storage:** **Google Cloud Storage (GCS)**. All photos and videos are uploaded directly to a private GCS bucket using Signed URLs for secure, direct-to-cloud uploads.
 
-Functionality:
+## Authentication & Security
+* **Identity:** Firebase Authentication.
+* **Model:** Invite-only system. One partner creates the "Locket" and generates an invite code for the second partner, or send invitation via email.
+* **Authorization:** Strict Row-Level Security (RLS) or middleware logic ensures data is only accessible to the two users in that specific Locket.
 
-API routes to handle database queries (getting and saving media).
-
-An API route to generate a secure, pre-signed URL for uploading files directly to S3.
-
-An API route to handle password verification and session creation.
-
-## Database & Storage
-Database: PostgreSQL. A powerful and reliable open-source SQL database. It will run in its own dedicated container.
-
-File Storage: Amazon S3. All images and videos will be uploaded directly to a private S3 bucket.
-
-## Environment & Secrets
-Configuration: A .env file will be used at the root of the project to store all environment variables. This keeps sensitive information like AWS credentials, database connection strings, and session secrets out of the source code.
-
-## Containerization
-Docker: The entire Next.js application will be built into a single Docker image. The PostgreSQL database will use the official public image.
-
-Docker Compose: A docker-compose.yml file will define and orchestrate the application services (app and db). It will be configured to use the .env file.
-
-## Authentication & Sessions
-Method: A simple password protection scheme.
-
-Session Management: Upon successful login, a secure, HTTP-only cookie containing a session token (e.g., a JWT) will be set. This cookie will be used to authenticate subsequent requests, providing persistent sessions without needing to re-enter the password.
+## Deployment & Infrastructure
+* **Docker:** The entire application is built into a single Docker image.
+* **Orchestration:** Docker Compose for local development (App + Postgres).
+* **Environment:** All secrets (GCS Credentials, DB strings, Firebase keys) are managed via a `.env` file at the root.

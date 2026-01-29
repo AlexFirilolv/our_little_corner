@@ -91,5 +91,10 @@ export const config = {
     '/signup',
     // Add support for corner routes
     '/corner/:path*',
+    // New Twofold routes
+    '/timeline',
+    '/journey',
+    '/upload',
+    '/profile',
   ],
 }

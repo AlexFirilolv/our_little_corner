@@ -1,8 +1,12 @@
-// Multi-tenant type definitions for "Our Little Corner"
+// Multi-tenant type definitions for "Our Little Corner" (Twofold)
 
-export type CornerRole = 'admin' | 'participant';
+export type LocketRole = 'admin' | 'participant';
 export type InviteStatus = 'pending' | 'accepted' | 'expired' | 'revoked';
 export type SessionType = 'firebase' | 'guest' | 'shared';
+export type MemoryMood = 'cozy' | 'silly' | 'romantic' | 'adventurous';
+
+// Backwards compatibility aliases
+export type CornerRole = LocketRole;
 
 // Firebase User interface (from Firebase Auth)
 export interface FirebaseUser {
@@ -13,8 +17,8 @@ export interface FirebaseUser {
   emailVerified: boolean;
 }
 
-// Corner (couple's private space)
-export interface Corner {
+// Locket (couple's private space) - formerly "Corner"
+export interface Locket {
   id: string;
   name: string;
   description?: string;
@@ -25,15 +29,23 @@ export interface Corner {
   admin_firebase_uid: string;
   created_at: Date;
   updated_at: Date;
-  
+
+  // Relationship metadata (Twofold features)
+  anniversary_date?: Date;
+  next_countdown_event_name?: string;
+  next_countdown_date?: Date;
+
   // Calculated fields (not in DB)
   member_count?: number;
   media_count?: number;
   is_user_admin?: boolean;
-  user_role?: CornerRole;
+  user_role?: LocketRole;
 }
 
-export interface CreateCorner {
+// Backwards compatibility alias
+export type Corner = Locket;
+
+export interface CreateLocket {
   name: string;
   description?: string;
   is_public?: boolean;
@@ -41,61 +53,76 @@ export interface CreateCorner {
   admin_firebase_uid: string;
 }
 
-export interface UpdateCorner {
+// Backwards compatibility alias
+export type CreateCorner = CreateLocket;
+
+export interface UpdateLocket {
   name?: string;
   description?: string;
   is_public?: boolean;
   share_password?: string;
 }
 
-// Corner Users (many-to-many relationship)
-export interface CornerUser {
+// Backwards compatibility alias
+export type UpdateCorner = UpdateLocket;
+
+// Locket Users (many-to-many relationship)
+export interface LocketUser {
   id: string;
-  corner_id: string;
+  locket_id: string;
   firebase_uid: string;
   display_name?: string;
   email?: string;
   avatar_url?: string;
-  role: CornerRole;
+  role: LocketRole;
   can_upload: boolean;
   can_edit_others_media: boolean;
-  can_manage_corner: boolean;
+  can_manage_locket: boolean;
   joined_at: Date;
   last_active_at: Date;
-  
+
   // Populated from joins
-  corner?: Corner;
+  locket?: Locket;
 }
 
-export interface CreateCornerUser {
-  corner_id: string;
+// Backwards compatibility alias
+export type CornerUser = LocketUser;
+
+export interface CreateLocketUser {
+  locket_id: string;
   firebase_uid: string;
   display_name?: string;
   email?: string;
   avatar_url?: string;
-  role?: CornerRole;
+  role?: LocketRole;
   can_upload?: boolean;
   can_edit_others_media?: boolean;
-  can_manage_corner?: boolean;
+  can_manage_locket?: boolean;
 }
 
-export interface UpdateCornerUser {
-  role?: CornerRole;
+// Backwards compatibility alias
+export type CreateCornerUser = CreateLocketUser;
+
+export interface UpdateLocketUser {
+  role?: LocketRole;
   can_upload?: boolean;
   can_edit_others_media?: boolean;
-  can_manage_corner?: boolean;
+  can_manage_locket?: boolean;
   display_name?: string;
   avatar_url?: string;
 }
 
-// Corner Invites
-export interface CornerInvite {
+// Backwards compatibility alias
+export type UpdateCornerUser = UpdateLocketUser;
+
+// Locket Invites
+export interface LocketInvite {
   id: string;
-  corner_id: string;
+  locket_id: string;
   email: string;
   invite_token: string;
   message?: string;
-  role: CornerRole;
+  role: LocketRole;
   can_upload: boolean;
   can_edit_others_media: boolean;
   status: InviteStatus;
@@ -103,32 +130,41 @@ export interface CornerInvite {
   expires_at: Date;
   created_at: Date;
   accepted_at?: Date;
-  
+
   // Populated from joins
-  corner?: Corner;
-  invited_by?: CornerUser;
+  locket?: Locket;
+  invited_by?: LocketUser;
 }
 
-export interface CreateCornerInvite {
-  corner_id: string;
+// Backwards compatibility alias
+export type CornerInvite = LocketInvite;
+
+export interface CreateLocketInvite {
+  locket_id: string;
   email: string;
   message?: string;
-  role?: CornerRole;
+  role?: LocketRole;
   can_upload?: boolean;
   can_edit_others_media?: boolean;
   invited_by_firebase_uid: string;
   expires_at?: Date;
 }
 
-export interface UpdateCornerInvite {
+// Backwards compatibility alias
+export type CreateCornerInvite = CreateLocketInvite;
+
+export interface UpdateLocketInvite {
   status?: InviteStatus;
   accepted_at?: Date;
 }
 
-// Updated Memory Groups (now corner-aware)
+// Backwards compatibility alias
+export type UpdateCornerInvite = UpdateLocketInvite;
+
+// Updated Memory Groups (now locket-aware)
 export interface MemoryGroup {
   id: string;
-  corner_id: string;
+  locket_id: string;
   title?: string;
   description?: string;
   is_locked: boolean;
@@ -139,7 +175,11 @@ export interface MemoryGroup {
   updated_at: Date;
   media_items?: MediaItem[];
   media_count?: number;
-  
+
+  // Twofold features
+  mood?: MemoryMood;
+  is_milestone?: boolean;
+
   // Advanced locking features
   lock_visibility?: 'public' | 'private';
   show_date_hint?: boolean;
@@ -149,26 +189,30 @@ export interface MemoryGroup {
   unlock_task?: string;
   unlock_type?: 'scheduled' | 'task_based';
   task_completed?: boolean;
-  
+
   // Public visibility controls
   show_title?: boolean;
   show_description?: boolean;
   show_media_count?: boolean;
   show_creation_date?: boolean;
-  
+
   // Populated from joins
-  corner?: Corner;
-  created_by?: CornerUser;
+  locket?: Locket;
+  created_by?: LocketUser;
 }
 
 export interface CreateMemoryGroup {
-  corner_id: string;
+  locket_id: string;
   title?: string;
   description?: string;
   is_locked?: boolean;
   unlock_date?: Date;
   created_by_firebase_uid?: string;
-  
+
+  // Twofold features
+  mood?: MemoryMood;
+  is_milestone?: boolean;
+
   // Advanced locking features
   lock_visibility?: 'public' | 'private';
   show_date_hint?: boolean;
@@ -178,7 +222,7 @@ export interface CreateMemoryGroup {
   unlock_task?: string;
   unlock_type?: 'scheduled' | 'task_based';
   task_completed?: boolean;
-  
+
   // Public visibility controls
   show_title?: boolean;
   show_description?: boolean;
@@ -192,7 +236,11 @@ export interface UpdateMemoryGroup {
   is_locked?: boolean;
   unlock_date?: Date | null;
   cover_media_id?: string;
-  
+
+  // Twofold features
+  mood?: MemoryMood;
+  is_milestone?: boolean;
+
   // Advanced locking features
   lock_visibility?: 'public' | 'private';
   show_date_hint?: boolean;
@@ -202,7 +250,7 @@ export interface UpdateMemoryGroup {
   unlock_task?: string;
   unlock_type?: 'scheduled' | 'task_based';
   task_completed?: boolean;
-  
+
   // Public visibility controls
   show_title?: boolean;
   show_description?: boolean;
@@ -210,15 +258,46 @@ export interface UpdateMemoryGroup {
   show_creation_date?: boolean;
 }
 
-// Updated Media Items (now corner-aware)
+// Bucket List Items
+export interface BucketListItem {
+  id: string;
+  locket_id: string;
+  title: string;
+  description?: string;
+  category: 'travel' | 'food' | 'activity' | 'other';
+  status: 'active' | 'completed';
+  completed_at?: Date;
+  created_by_firebase_uid?: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface CreateBucketListItem {
+  locket_id: string;
+  title: string;
+  description?: string;
+  category?: 'travel' | 'food' | 'activity' | 'other';
+  status?: 'active' | 'completed';
+  created_by_firebase_uid?: string;
+}
+
+export interface UpdateBucketListItem {
+  title?: string;
+  description?: string;
+  category?: 'travel' | 'food' | 'activity' | 'other';
+  status?: 'active' | 'completed';
+  completed_at?: Date;
+}
+
+// Updated Media Items (now locket-aware)
 export interface MediaItem {
   id: string;
-  corner_id: string;
+  locket_id: string;
   memory_group_id?: string;
   filename: string;
   original_name: string;
-  s3_key: string;
-  s3_url: string;
+  storage_key: string;
+  storage_url: string;
   file_type: string;
   file_size: number;
   width?: number;
@@ -231,20 +310,25 @@ export interface MediaItem {
   uploaded_by_firebase_uid?: string;
   created_at: Date;
   updated_at: Date;
-  
+
+  // Location data
+  latitude?: number;
+  longitude?: number;
+  place_name?: string;
+
   // Populated from joins
-  corner?: Corner;
+  locket?: Locket;
   memory_group?: MemoryGroup;
-  uploaded_by?: CornerUser;
+  uploaded_by?: LocketUser;
 }
 
 export interface CreateMediaItem {
-  corner_id: string;
+  locket_id: string;
   memory_group_id?: string;
   filename: string;
   original_name: string;
-  s3_key: string;
-  s3_url: string;
+  storage_key: string;
+  storage_url: string;
   file_type: string;
   file_size: number;
   width?: number;
@@ -255,6 +339,9 @@ export interface CreateMediaItem {
   date_taken?: Date;
   sort_order?: number;
   uploaded_by_firebase_uid?: string;
+  latitude?: number;
+  longitude?: number;
+  place_name?: string;
 }
 
 export interface UpdateMediaItem {
@@ -263,23 +350,28 @@ export interface UpdateMediaItem {
   date_taken?: Date;
   sort_order?: number;
   memory_group_id?: string;
-  
+
   // File replacement fields
   filename?: string;
   original_name?: string;
-  s3_key?: string;
-  s3_url?: string;
+  storage_key?: string;
+  storage_url?: string;
   file_type?: string;
   file_size?: number;
   width?: number;
   height?: number;
   duration?: number;
+
+  // Location fields
+  latitude?: number;
+  longitude?: number;
+  place_name?: string;
 }
 
-// Corner Analytics
-export interface CornerAnalytics {
+// Locket Analytics
+export interface LocketAnalytics {
   id: string;
-  corner_id: string;
+  locket_id: string;
   event_type: string; // 'view', 'upload', 'share', 'invite'
   firebase_uid?: string; // NULL for anonymous/guest views
   metadata: Record<string, any>;
@@ -288,8 +380,11 @@ export interface CornerAnalytics {
   created_at: Date;
 }
 
-export interface CreateCornerAnalytics {
-  corner_id: string;
+// Backwards compatibility alias
+export type CornerAnalytics = LocketAnalytics;
+
+export interface CreateLocketAnalytics {
+  locket_id: string;
   event_type: string;
   firebase_uid?: string;
   metadata?: Record<string, any>;
@@ -297,10 +392,13 @@ export interface CreateCornerAnalytics {
   user_agent?: string;
 }
 
+// Backwards compatibility alias
+export type CreateCornerAnalytics = CreateLocketAnalytics;
+
 // Shared Access Tokens
 export interface SharedAccessToken {
   id: string;
-  corner_id: string;
+  locket_id: string;
   token: string;
   permissions: {
     can_view: boolean;
@@ -313,14 +411,14 @@ export interface SharedAccessToken {
   expires_at?: Date;
   created_by_firebase_uid: string;
   created_at: Date;
-  
+
   // Populated from joins
-  corner?: Corner;
-  created_by?: CornerUser;
+  locket?: Locket;
+  created_by?: LocketUser;
 }
 
 export interface CreateSharedAccessToken {
-  corner_id: string;
+  locket_id: string;
   permissions?: {
     can_view: boolean;
     can_download: boolean;
@@ -345,18 +443,18 @@ export interface UpdateSharedAccessToken {
 export interface Session {
   id: string;
   session_token: string;
-  corner_id?: string;
+  locket_id?: string;
   firebase_uid?: string;
   session_type: SessionType;
   expires_at: Date;
   created_at: Date;
-  
+
   // Populated from joins
-  corner?: Corner;
+  locket?: Locket;
 }
 
 // Filter and search types
-export interface CornerFilters {
+export interface LocketFilters {
   is_public?: boolean;
   member_count_min?: number;
   member_count_max?: number;
@@ -364,8 +462,11 @@ export interface CornerFilters {
   created_before?: Date;
 }
 
+// Backwards compatibility alias
+export type CornerFilters = LocketFilters;
+
 export interface MediaFilters {
-  corner_id?: string;
+  locket_id?: string;
   memory_group_id?: string;
   file_type?: string;
   uploaded_by_firebase_uid?: string;
@@ -375,7 +476,7 @@ export interface MediaFilters {
 }
 
 export interface MemoryGroupFilters {
-  corner_id?: string;
+  locket_id?: string;
   is_locked?: boolean;
   created_by_firebase_uid?: string;
   date_from?: Date;
@@ -413,22 +514,25 @@ export interface AuthContextType {
   updateProfile: (data: { displayName?: string; photoURL?: string }) => Promise<void>;
 }
 
-// Corner context types
-export interface CornerContextType {
-  currentCorner: Corner | null;
-  userCorners: Corner[];
-  pendingInvites: CornerInvite[];
-  userRole: CornerRole | null;
+// Locket context types
+export interface LocketContextType {
+  currentLocket: Locket | null;
+  userLockets: Locket[];
+  pendingInvites: LocketInvite[];
+  userRole: LocketRole | null;
   loading: boolean;
   error: string | null;
-  createCorner: (data: CreateCorner) => Promise<Corner>;
-  switchCorner: (cornerId: string) => Promise<void>;
-  updateCorner: (cornerId: string, data: UpdateCorner) => Promise<Corner>;
-  inviteUser: (data: CreateCornerInvite) => Promise<CornerInvite>;
-  removeUser: (cornerId: string, userId: string) => Promise<void>;
-  refreshCorners: () => Promise<void>;
+  createLocket: (data: CreateLocket) => Promise<Locket>;
+  switchLocket: (locketId: string) => Promise<void>;
+  updateLocket: (locketId: string, data: UpdateLocket) => Promise<Locket>;
+  inviteUser: (data: CreateLocketInvite) => Promise<LocketInvite>;
+  removeUser: (locketId: string, userId: string) => Promise<void>;
+  refreshLockets: () => Promise<void>;
   clearError: () => void;
 }
+
+// Backwards compatibility alias
+export type CornerContextType = LocketContextType;
 
 // Sharing types
 export interface ShareableLink {
@@ -441,7 +545,7 @@ export interface ShareableLink {
 }
 
 export interface CreateShareableLink {
-  corner_id: string;
+  locket_id: string;
   password?: string;
   expires_at?: Date;
   max_uses?: number;
@@ -457,8 +561,8 @@ export interface AcceptInviteData {
   firebase_uid: string;
 }
 
-// Corner statistics
-export interface CornerStats {
+// Locket statistics
+export interface LocketStats {
   member_count: number;
   media_count: number;
   memory_group_count: number;
@@ -466,6 +570,9 @@ export interface CornerStats {
   recent_activity_count: number;
   creation_date: Date;
 }
+
+// Backwards compatibility alias
+export type CornerStats = LocketStats;
 
 // Error types
 export interface AppError {

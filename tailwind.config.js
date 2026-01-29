@@ -17,32 +17,40 @@ module.exports = {
     },
     extend: {
       colors: {
-        // Romantic color palette from design.md
+        // Twofold color palette
         primary: {
-          DEFAULT: "#FFC0CB", // Pastel Pink
-          foreground: "#5C5470", // Dark Muted Purple
+          DEFAULT: "#ee2b6c", // New Design Primary
+          foreground: "#FDF6F7", // Blush Paper (light text on dark primary)
         },
+        "background-light": "#f8f6f6",
+        "background-dark": "#221016",
+        "input-dark": "#331922",
+        "border-dark": "#673244",
         secondary: {
-          DEFAULT: "#F5E6E8", // Creamy White
-          foreground: "#5C5470",
+          DEFAULT: "#FDF6F7", // Blush Paper
+          foreground: "#4A2C35", // Dark Truffle
         },
         accent: {
-          DEFAULT: "#D9AAB7", // Dusty Rose
-          foreground: "#5C5470",
+          DEFAULT: "#C8A659", // Muted Gold
+          foreground: "#4A2C35", // Dark Truffle
         },
-        background: "#F5E6E8",
-        foreground: "#5C5470",
-        border: "#D9AAB7",
-        input: "#F5E6E8",
-        ring: "#FFC0CB",
+        background: "#FDF6F7", // Blush Paper
+        foreground: "#4A2C35", // Dark Truffle
+        border: "#BA4A68", // Deep Rose
+        input: "#FDF6F7", // Blush Paper
+        ring: "#BA4A68", // Deep Rose
         muted: {
-          DEFAULT: "#F5E6E8",
-          foreground: "#5C5470",
+          DEFAULT: "#F5EEF0", // Slightly darker blush
+          foreground: "#5C5470", // Truffle (original)
         },
         destructive: {
           DEFAULT: "hsl(0 84.2% 60.2%)",
           foreground: "hsl(210 40% 98%)",
         },
+        gold: "#C8A659", // Muted Gold accent
+        rose: "#BA4A68", // Deep Rose
+        truffle: "#4A2C35", // Dark Truffle
+        blush: "#FDF6F7", // Blush Paper
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -50,8 +58,11 @@ module.exports = {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        'romantic': ['var(--font-romantic)', '"Dancing Script"', 'cursive'],
-        'body': ['var(--font-body)', '"Quicksand"', 'sans-serif'],
+        'heading': ['var(--font-heading)', '"Playfair Display"', 'serif'],
+        'body': ['var(--font-body)', '"Lato"', 'sans-serif'],
+        'display': ['var(--font-jakarta)', '"Plus Jakarta Sans"', 'sans-serif'],
+        'newsreader': ['var(--font-newsreader)', '"Newsreader"', 'serif'],
+        'sans': ['var(--font-noto)', '"Noto Sans"', 'sans-serif'],
       },
       keyframes: {
         "accordion-down": {

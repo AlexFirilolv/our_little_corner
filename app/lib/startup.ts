@@ -10,12 +10,13 @@ export async function initializeApp(): Promise<void> {
     return;
   }
 
-  console.log('Initializing application...');
+  console.log('Initializing application (Environment:', process.env.NODE_ENV, ')');
 
   try {
     // Ensure DB is ready before migrations
     await waitForDB();
     
+    console.log('Running migrations...');
     // Run database migrations
     await runPendingMigrations();
     

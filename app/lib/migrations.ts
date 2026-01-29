@@ -13,10 +13,76 @@ const createMigrationsTable = `
 // Migration definitions
 const migrations = [
   {
-    name: '001_create_extensions',
+    name: '000_create_extensions',
     sql: `
       -- Create extension for UUID generation
       CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    `,
+  },
+  {
+    name: '001_create_base_tables',
+    sql: `
+      -- Create base tables if they don't exist (Legacy schema support)
+      
+      -- Media table
+      CREATE TABLE IF NOT EXISTS media (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          filename VARCHAR(255) NOT NULL,
+          original_name VARCHAR(255) NOT NULL,
+          s3_key VARCHAR(255), -- Legacy name, will be renamed
+          s3_url TEXT, -- Legacy name, will be renamed
+          storage_key VARCHAR(255), -- New name
+          storage_url TEXT, -- New name
+          file_type VARCHAR(50) NOT NULL,
+          file_size BIGINT NOT NULL,
+          width INTEGER,
+          height INTEGER,
+          duration INTEGER,
+          title VARCHAR(255),
+          note TEXT,
+          date_taken TIMESTAMP WITH TIME ZONE,
+          sort_order INTEGER DEFAULT 0,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          memory_group_id UUID, -- Will be linked later
+          uploaded_by_firebase_uid VARCHAR(255) -- Will be added later if missing
+      );
+
+      -- Memory Groups table
+      CREATE TABLE IF NOT EXISTS memory_groups (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          title VARCHAR(255),
+          description TEXT,
+          is_locked BOOLEAN DEFAULT false,
+          unlock_date TIMESTAMP WITH TIME ZONE,
+          cover_media_id UUID,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+
+      -- Sessions table
+      CREATE TABLE IF NOT EXISTS sessions (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          session_token VARCHAR(255) UNIQUE NOT NULL,
+          expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+      
+      -- Handle legacy column names if they exist but new ones don't
+      DO $$ 
+      BEGIN 
+          -- Ensure storage_key exists (copy from s3_key if needed)
+          IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'media' AND column_name = 's3_key') 
+             AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'media' AND column_name = 'storage_key') THEN
+              ALTER TABLE media RENAME COLUMN s3_key TO storage_key;
+          END IF;
+
+          -- Ensure storage_url exists (copy from s3_url if needed)
+          IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'media' AND column_name = 's3_url') 
+             AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'media' AND column_name = 'storage_url') THEN
+              ALTER TABLE media RENAME COLUMN s3_url TO storage_url;
+          END IF;
+      END $$;
     `,
   },
   {
@@ -228,41 +294,51 @@ const migrations = [
     name: '009_add_legacy_permission_columns',
     sql: `
       -- Add backward-compatible permission columns to corner_users
-      DO $$ 
-      BEGIN 
-          IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+      DO $$
+      BEGIN
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns
                         WHERE table_name = 'corner_users' AND column_name = 'can_upload') THEN
-              ALTER TABLE corner_users 
+              ALTER TABLE corner_users
               ADD COLUMN can_upload BOOLEAN DEFAULT false,
               ADD COLUMN can_edit_others_media BOOLEAN DEFAULT false,
               ADD COLUMN can_manage_corner BOOLEAN DEFAULT false;
           END IF;
       END $$;
-      
+
       -- Add backward-compatible permission columns to corner_invites
-      DO $$ 
-      BEGIN 
-          IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+      DO $$
+      BEGIN
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns
                         WHERE table_name = 'corner_invites' AND column_name = 'can_upload') THEN
-              ALTER TABLE corner_invites 
+              ALTER TABLE corner_invites
               ADD COLUMN can_upload BOOLEAN DEFAULT false,
               ADD COLUMN can_edit_others_media BOOLEAN DEFAULT false;
           END IF;
       END $$;
-      
-      -- Update existing records to sync with permissions JSONB
-      UPDATE corner_users 
-      SET 
-        can_upload = (permissions->>'upload')::boolean,
-        can_edit_others_media = (permissions->>'edit')::boolean,
-        can_manage_corner = (permissions->>'manage')::boolean
-      WHERE permissions IS NOT NULL;
-      
-      UPDATE corner_invites 
-      SET 
-        can_upload = (permissions->>'upload')::boolean,
-        can_edit_others_media = (permissions->>'edit')::boolean
-      WHERE permissions IS NOT NULL;
+
+      -- Conditionally sync with permissions JSONB if it exists
+      -- (Schema variants: some have JSONB, Docker init script uses boolean columns directly)
+      DO $$
+      BEGIN
+          IF EXISTS (SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'corner_users' AND column_name = 'permissions') THEN
+              UPDATE corner_users
+              SET
+                can_upload = COALESCE((permissions->>'upload')::boolean, can_upload),
+                can_edit_others_media = COALESCE((permissions->>'edit')::boolean, can_edit_others_media),
+                can_manage_corner = COALESCE((permissions->>'manage')::boolean, can_manage_corner)
+              WHERE permissions IS NOT NULL;
+          END IF;
+
+          IF EXISTS (SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'corner_invites' AND column_name = 'permissions') THEN
+              UPDATE corner_invites
+              SET
+                can_upload = COALESCE((permissions->>'upload')::boolean, can_upload),
+                can_edit_others_media = COALESCE((permissions->>'edit')::boolean, can_edit_others_media)
+              WHERE permissions IS NOT NULL;
+          END IF;
+      END $$;
     `,
   },
   {
@@ -392,15 +468,203 @@ const migrations = [
           END IF;
       END $$;
       
-      -- Step 5: Add database constraints to prevent future orphans
-      -- Add check constraint to ensure corner_id consistency
-      ALTER TABLE media 
-      ADD CONSTRAINT media_corner_consistency_check 
-      CHECK (
-          corner_id IS NOT NULL AND 
-          (memory_group_id IS NULL OR 
-           EXISTS (SELECT 1 FROM memory_groups mg WHERE mg.id = memory_group_id AND mg.corner_id = media.corner_id))
-      );
+      -- Step 5: Ensure corner_id is NOT NULL (basic constraint)
+      -- Note: Cross-table consistency (memory_group.corner_id = media.corner_id)
+      -- is enforced at the application level since PostgreSQL CHECK constraints
+      -- cannot contain subqueries
+      DO $$
+      BEGIN
+          -- Add NOT NULL constraint on corner_id if not already set
+          IF EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'media'
+              AND column_name = 'corner_id'
+              AND is_nullable = 'YES'
+          ) THEN
+              -- Only add constraint if all existing records have corner_id
+              IF NOT EXISTS (SELECT 1 FROM media WHERE corner_id IS NULL) THEN
+                  ALTER TABLE media ALTER COLUMN corner_id SET NOT NULL;
+              END IF;
+          END IF;
+      END $$;
+    `,
+  },
+  {
+    name: '012_add_twofold_fields',
+    sql: `
+      -- 1. Add Mood and Milestone support to memory_groups
+      DO $$ BEGIN
+        CREATE TYPE memory_mood AS ENUM ('cozy', 'silly', 'romantic', 'adventurous');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
+
+      ALTER TABLE memory_groups 
+      ADD COLUMN IF NOT EXISTS mood memory_mood,
+      ADD COLUMN IF NOT EXISTS is_milestone BOOLEAN DEFAULT false;
+
+      -- 2. Add Geolocation support to media
+      ALTER TABLE media
+      ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION,
+      ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION,
+      ADD COLUMN IF NOT EXISTS place_name VARCHAR(255);
+    `,
+  },
+  {
+    name: '013_rename_corner_to_locket',
+    sql: `
+      -- ================================================================
+      -- Migration: Rename "corner" to "locket" throughout the database
+      -- ================================================================
+
+      -- 1. Rename ENUM type: corner_role → locket_role
+      DO $$
+      BEGIN
+          IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'corner_role') THEN
+              ALTER TYPE corner_role RENAME TO locket_role;
+          END IF;
+      END $$;
+
+      -- 2. Rename main table: corners → lockets
+      DO $$
+      BEGIN
+          IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'corners')
+             AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'lockets') THEN
+              ALTER TABLE corners RENAME TO lockets;
+          END IF;
+      END $$;
+
+      -- 3. Rename corner_users → locket_users
+      DO $$
+      BEGIN
+          IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'corner_users')
+             AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'locket_users') THEN
+              ALTER TABLE corner_users RENAME TO locket_users;
+          END IF;
+      END $$;
+
+      -- 4. Rename corner_invites → locket_invites
+      DO $$
+      BEGIN
+          IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'corner_invites')
+             AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'locket_invites') THEN
+              ALTER TABLE corner_invites RENAME TO locket_invites;
+          END IF;
+      END $$;
+
+      -- 5. Rename corner_analytics → locket_analytics
+      DO $$
+      BEGIN
+          IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'corner_analytics')
+             AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'locket_analytics') THEN
+              ALTER TABLE corner_analytics RENAME TO locket_analytics;
+          END IF;
+      END $$;
+
+      -- 6. Rename corner_id columns to locket_id in all tables
+      DO $$
+      BEGIN
+          -- In locket_users (formerly corner_users)
+          IF EXISTS (SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'locket_users' AND column_name = 'corner_id') THEN
+              ALTER TABLE locket_users RENAME COLUMN corner_id TO locket_id;
+          END IF;
+
+          -- In locket_invites (formerly corner_invites)
+          IF EXISTS (SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'locket_invites' AND column_name = 'corner_id') THEN
+              ALTER TABLE locket_invites RENAME COLUMN corner_id TO locket_id;
+          END IF;
+
+          -- In locket_analytics (formerly corner_analytics)
+          IF EXISTS (SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'locket_analytics' AND column_name = 'corner_id') THEN
+              ALTER TABLE locket_analytics RENAME COLUMN corner_id TO locket_id;
+          END IF;
+
+          -- In media table
+          IF EXISTS (SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'media' AND column_name = 'corner_id') THEN
+              ALTER TABLE media RENAME COLUMN corner_id TO locket_id;
+          END IF;
+
+          -- In memory_groups table
+          IF EXISTS (SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'memory_groups' AND column_name = 'corner_id') THEN
+              ALTER TABLE memory_groups RENAME COLUMN corner_id TO locket_id;
+          END IF;
+
+          -- In shared_access_tokens table
+          IF EXISTS (SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'shared_access_tokens' AND column_name = 'corner_id') THEN
+              ALTER TABLE shared_access_tokens RENAME COLUMN corner_id TO locket_id;
+          END IF;
+
+          -- In sessions table (if exists)
+          IF EXISTS (SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'sessions' AND column_name = 'corner_id') THEN
+              ALTER TABLE sessions RENAME COLUMN corner_id TO locket_id;
+          END IF;
+      END $$;
+
+      -- 7. Rename can_manage_corner → can_manage_locket in locket_users
+      DO $$
+      BEGIN
+          IF EXISTS (SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'locket_users' AND column_name = 'can_manage_corner') THEN
+              ALTER TABLE locket_users RENAME COLUMN can_manage_corner TO can_manage_locket;
+          END IF;
+      END $$;
+
+      -- 8. Update indexes (drop old, create new with correct names)
+      -- Note: Index renames are cosmetic but help with clarity
+      DO $$
+      BEGIN
+          -- Rename indexes if they exist
+          IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_corner_users_corner_id') THEN
+              ALTER INDEX idx_corner_users_corner_id RENAME TO idx_locket_users_locket_id;
+          END IF;
+          IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_corner_users_firebase_uid') THEN
+              ALTER INDEX idx_corner_users_firebase_uid RENAME TO idx_locket_users_firebase_uid;
+          END IF;
+          IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_corner_invites_corner_id') THEN
+              ALTER INDEX idx_corner_invites_corner_id RENAME TO idx_locket_invites_locket_id;
+          END IF;
+          IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_corner_invites_token') THEN
+              ALTER INDEX idx_corner_invites_token RENAME TO idx_locket_invites_token;
+          END IF;
+          IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_corner_invites_email') THEN
+              ALTER INDEX idx_corner_invites_email RENAME TO idx_locket_invites_email;
+          END IF;
+          IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_corner_invites_status') THEN
+              ALTER INDEX idx_corner_invites_status RENAME TO idx_locket_invites_status;
+          END IF;
+          IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_media_corner_id') THEN
+              ALTER INDEX idx_media_corner_id RENAME TO idx_media_locket_id;
+          END IF;
+          IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_memory_groups_corner_id') THEN
+              ALTER INDEX idx_memory_groups_corner_id RENAME TO idx_memory_groups_locket_id;
+          END IF;
+          IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_shared_access_tokens_corner_id') THEN
+              ALTER INDEX idx_shared_access_tokens_corner_id RENAME TO idx_shared_access_tokens_locket_id;
+          END IF;
+          IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_corner_analytics_corner_id') THEN
+              ALTER INDEX idx_corner_analytics_corner_id RENAME TO idx_locket_analytics_locket_id;
+          END IF;
+          IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_corners_slug') THEN
+              ALTER INDEX idx_corners_slug RENAME TO idx_lockets_slug;
+          END IF;
+          IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_corners_invite_code') THEN
+              ALTER INDEX idx_corners_invite_code RENAME TO idx_lockets_invite_code;
+          END IF;
+          IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_corners_admin_firebase_uid') THEN
+              ALTER INDEX idx_corners_admin_firebase_uid RENAME TO idx_lockets_admin_firebase_uid;
+          END IF;
+      END $$;
+
+      -- 9. Update constraint names (cosmetic but helps clarity)
+      -- Note: Foreign key constraints will auto-update to reference new table names
+      -- but their names remain the same. This is fine for functionality.
     `,
   },
 ];

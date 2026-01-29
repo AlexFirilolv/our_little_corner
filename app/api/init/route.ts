@@ -17,12 +17,13 @@ export async function POST() {
 
 export async function GET() {
   try {
+    console.log('Manual initialization triggered via GET /api/init');
     await initializeApp();
     return NextResponse.json({ success: true, message: 'Application initialized successfully' });
   } catch (error) {
     console.error('Initialization failed:', error);
     return NextResponse.json(
-      { success: false, error: 'Initialization failed' },
+      { success: false, error: error instanceof Error ? error.message : 'Initialization failed' },
       { status: 500 }
     );
   }

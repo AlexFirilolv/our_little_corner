@@ -26,7 +26,9 @@ spec:
         - secretRef:
             name: our-little-corner-secrets
         env:
-        - name: var1
-          value: val1
+        - name: POSTGRES_USER
+          value: postgres
+        - name: DATABASE_URL
+          value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_DB)"
       imagePullSecrets:
       - name: ghcr-secret

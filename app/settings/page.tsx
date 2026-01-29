@@ -139,7 +139,7 @@ export default function SettingsPage() {
           </Button>
           <div className="flex items-center gap-3">
             <Settings className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-romantic text-primary">Account Settings</h1>
+            <h1 className="text-2xl font-heading text-primary">Account Settings</h1>
           </div>
         </div>
 
