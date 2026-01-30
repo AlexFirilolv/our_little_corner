@@ -4,19 +4,23 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocket } from '@/contexts/LocketContext';
-import UploadMilestone from '@/components/UploadMilestone';
-// CreateNote is defined below
 import UploadMemory from '@/components/UploadMemory';
 import { ImageIcon, Flag, StickyNote, List, ArrowLeft, Loader2, Check } from 'lucide-react';
 
 type CreationType = 'select' | 'memory' | 'milestone' | 'note' | 'bucket';
 
 export default function UploadPage() {
-  const { currentLocket } = useLocket();
+  const { currentLocket, loading } = useLocket();
   const router = useRouter();
   const [step, setStep] = useState<CreationType>('select');
 
-  if (!currentLocket) {
+  React.useEffect(() => {
+    if (!loading && !currentLocket) {
+      router.push('/locket-create');
+    }
+  }, [loading, currentLocket, router]);
+
+  if (loading || !currentLocket) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <Loader2 className="animate-spin text-primary" />
@@ -25,7 +29,7 @@ export default function UploadPage() {
   }
 
   if (step === 'memory') return <UploadMemory />;
-  if (step === 'milestone') return <UploadMilestone />;
+  if (step === 'milestone') return <UploadMemory isMilestone />;
   if (step === 'note') return <CreateNote onCancel={() => setStep('select')} />;
   if (step === 'bucket') return <CreateBucketItem onCancel={() => setStep('select')} />;
 
@@ -116,11 +120,8 @@ function CreateNote({ onCancel }: { onCancel: () => void }) {
         },
         body: JSON.stringify({
           locket_id: currentLocket.id,
-          title: 'Love Note', // Generic title for now
-          description: note,
-          mood: '🥰', // Default mood
-          // Note: API might need to handle 'no media' case gracefully. 
-          // Current mock impl in TimelineFeed assumes no media = note.
+          title: 'Love Note',
+          description: note
         })
       });
 
@@ -172,10 +173,21 @@ function CreateBucketItem({ onCancel }: { onCancel: () => void }) {
   const router = useRouter();
   const [title, setTitle] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !currentLocket) return;
+    setError('');
+
+    if (!title.trim()) {
+      setError('Please enter a goal or dream');
+      return;
+    }
+
+    if (!currentLocket) {
+      setError('No locket selected');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -196,10 +208,14 @@ function CreateBucketItem({ onCancel }: { onCancel: () => void }) {
       });
 
       if (res.ok) {
-        router.push('/profile');
+        router.push('/lists');
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Failed to add item');
       }
     } catch (error) {
       console.error("Failed to create bucket item", error);
+      setError('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -229,9 +245,13 @@ function CreateBucketItem({ onCancel }: { onCancel: () => void }) {
           />
         </div>
 
+        {error && (
+          <p className="text-red-500 text-sm text-center">{error}</p>
+        )}
+
         <button
           type="submit"
-          disabled={!title.trim() || loading}
+          disabled={loading}
           className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full font-bold shadow-lg shadow-emerald-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {loading ? <Loader2 className="animate-spin" /> : <Check />}

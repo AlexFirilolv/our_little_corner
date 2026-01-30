@@ -7,7 +7,7 @@ data:
   # General Config
   NODE_ENV: "development"
   PORT: "3000"
-  POSTGRES_DB: "our_little_corner"
+  POSTGRES_DB: "twofold"
   
   # AWS Public Config
   AWS_REGION: "us-east-1"

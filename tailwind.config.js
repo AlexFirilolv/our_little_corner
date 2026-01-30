@@ -81,12 +81,23 @@ module.exports = {
           "0%, 100%": { transform: "scale(1)" },
           "50%": { transform: "scale(1.1)" },
         },
+        "bounce-right": {
+          "0%, 100%": {
+            transform: "translateX(0)",
+            animationTimingFunction: "cubic-bezier(0.8, 0, 1, 1)"
+          },
+          "50%": {
+            transform: "translateX(25%)",
+            animationTimingFunction: "cubic-bezier(0, 0, 0.2, 1)"
+          }
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-in": "fade-in 0.5s ease-out",
         "heart-beat": "heart-beat 1.5s ease-in-out infinite",
+        "bounce-right": "bounce-right 1s infinite",
       },
     },
   },

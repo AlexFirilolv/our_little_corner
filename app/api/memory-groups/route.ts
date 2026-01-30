@@ -4,10 +4,12 @@ import {
   createMemoryGroup,
   updateMemoryGroup,
   deleteMemoryGroup,
-  getMemoryGroupById
+  getMemoryGroupById,
+  logMemoryActivity
 } from '@/lib/db'
 import type { CreateMemoryGroup, UpdateMemoryGroup } from '@/lib/types'
 import { requireAuth, requireLocketAccess, getUserFromAuthHeader } from '@/lib/firebase/serverAuth'
+import { generatePresignedDownloadUrl } from '@/lib/gcs'
 
 /**
  * GET /api/memory-groups - Get all memory groups
@@ -17,7 +19,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const locketId = searchParams.get('locketId')
     const includeMedia = searchParams.get('includeMedia') !== 'false'
-    const includeLocked = searchParams.get('includeLocked') === 'true'
 
     if (!locketId) {
       return NextResponse.json(
@@ -36,7 +37,24 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const memoryGroups = await getAllMemoryGroups(locketId, includeMedia, includeLocked)
+    const memoryGroups = await getAllMemoryGroups(locketId, includeMedia)
+
+    // Generate signed URLs for media items (bucket is private)
+    if (includeMedia) {
+      for (const group of memoryGroups) {
+        if (group.media_items && Array.isArray(group.media_items)) {
+          for (const media of group.media_items) {
+            if (media.storage_key) {
+              try {
+                media.storage_url = await generatePresignedDownloadUrl(media.storage_key)
+              } catch (e) {
+                console.error('Failed to generate signed URL for', media.storage_key, e)
+              }
+            }
+          }
+        }
+      }
+    }
 
     return NextResponse.json(
       { success: true, memoryGroups },
@@ -66,7 +84,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { locket_id, title, description, is_locked, unlock_date } = body
+    const { locket_id, title, description, date_taken, is_milestone } = body
 
     if (!locket_id) {
       return NextResponse.json(
@@ -85,19 +103,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!title?.trim()) {
-      return NextResponse.json(
-        { error: 'Memory group title is required' },
-        { status: 400 }
-      )
-    }
-
     const groupData: CreateMemoryGroup = {
       locket_id,
-      title: title.trim(),
+      title: title?.trim() || undefined,
       description: description?.trim() || undefined,
-      is_locked: is_locked || false,
-      unlock_date: unlock_date ? new Date(unlock_date) : undefined,
+      date_taken: date_taken ? new Date(date_taken) : undefined,
+      is_milestone: is_milestone || false,
       created_by_firebase_uid: user.uid,
     }
 
@@ -173,6 +184,33 @@ export async function PUT(request: NextRequest) {
         { error: 'Memory group not found' },
         { status: 404 }
       )
+    }
+
+    // Log activity for changes (non-blocking)
+    try {
+      const changes: string[] = []
+      if (updates.title !== undefined && updates.title !== existingGroup.title) {
+        changes.push('title')
+      }
+      if (updates.description !== undefined && updates.description !== existingGroup.description) {
+        changes.push('description')
+      }
+      if (updates.date_taken !== undefined) {
+        changes.push('date')
+      }
+
+      if (changes.length > 0) {
+        await logMemoryActivity(
+          id,
+          locket_id,
+          'memory_updated',
+          `Updated ${changes.join(', ')}`,
+          user.uid
+        )
+      }
+    } catch (activityError) {
+      console.error('Failed to log activity:', activityError)
+      // Don't fail the request if activity logging fails
     }
 
     return NextResponse.json(updatedGroup, { status: 200 })

@@ -48,6 +48,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${lato.variable} ${playfairDisplay.variable} ${plusJakartaSans.variable} ${newsreader.variable} ${notoSans.variable} font-body bg-background text-foreground antialiased`}>
+        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
         <AuthProvider>
           <LocketProvider>
             {children}

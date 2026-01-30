@@ -51,17 +51,50 @@ export function BucketList() {
     }, [currentLocket]);
 
     const toggleItem = async (id: string) => {
+        const item = items.find(i => i.id === id);
+        if (!item) return;
+
+        const newCompleted = !item.completed;
+
         // Optimistic update
-        setItems(items.map(item =>
-            item.id === id ? { ...item, completed: !item.completed } : item
+        setItems(prevItems => prevItems.map(i =>
+            i.id === id ? { ...i, completed: newCompleted } : i
         ));
 
-        // TODO: Call API to update status
+        try {
+            const { getCurrentUserToken } = await import('@/lib/firebase/auth');
+            const token = await getCurrentUserToken();
+
+            const res = await fetch(`/api/bucket-list/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    status: newCompleted ? 'completed' : 'active'
+                })
+            });
+
+            if (!res.ok) {
+                throw new Error('Failed to update status');
+            }
+        } catch (error) {
+            // Revert optimistic update on error
+            setItems(prevItems => prevItems.map(i =>
+                i.id === id ? { ...i, completed: item.completed } : i
+            ));
+            console.error('Failed to update item status:', error);
+            alert('Failed to update item status. Please try again.');
+        }
     };
 
     const addItem = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newItemText.trim() || !currentLocket) return;
+
+        const text = newItemText;
+        setNewItemText(''); // Clear input immediately for better UX
 
         try {
             const { getCurrentUserToken } = await import('@/lib/firebase/auth');
@@ -75,7 +108,7 @@ export function BucketList() {
                 },
                 body: JSON.stringify({
                     locketId: currentLocket.id,
-                    title: newItemText,
+                    title: text,
                     category: 'other'
                 })
             });
@@ -88,18 +121,44 @@ export function BucketList() {
                     completed: false, // Default from API is 'active'
                     category: data.item.category
                 };
-                setItems([...items, newItem]);
-                setNewItemText('');
+                setItems(prev => [...prev, newItem]);
+            } else {
+                throw new Error('Failed to add item');
             }
         } catch (error) {
             console.error("Failed to add item", error);
+            setNewItemText(text); // Restore text on failure
+            alert('Failed to add item. Please try again.');
         }
     };
 
-    const deleteItem = (id: string) => {
+    const deleteItem = async (id: string) => {
+        const itemToDelete = items.find(i => i.id === id);
+        if (!itemToDelete) return;
+
         // Optimistic delete
-        setItems(items.filter(item => item.id !== id));
-        // TODO: Call API
+        setItems(prevItems => prevItems.filter(item => item.id !== id));
+
+        try {
+            const { getCurrentUserToken } = await import('@/lib/firebase/auth');
+            const token = await getCurrentUserToken();
+
+            const res = await fetch(`/api/bucket-list/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!res.ok) {
+                throw new Error('Failed to delete item');
+            }
+        } catch (error) {
+            // Revert optimistic delete on error
+            setItems(prev => [...prev, itemToDelete]);
+            console.error('Failed to delete item:', error);
+            alert('Failed to delete item. Please try again.');
+        }
     };
 
     if (loading) {

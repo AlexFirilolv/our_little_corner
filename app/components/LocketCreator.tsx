@@ -128,6 +128,7 @@ export default function LocketCreator() {
           invited_by_firebase_uid: user!.uid,
           role: 'admin'
         })
+        // Locket context already has the new locket, navigate to home
         router.push('/')
 
       } else if (action === 'link') {
@@ -138,13 +139,14 @@ export default function LocketCreator() {
         setShowInviteModal(true)
 
       } else {
-        // Skip - just redirect
+        // Skip - just redirect to home
         router.push('/')
       }
 
     } catch (err) {
-      console.error('Setup failed:', err)
-      setError(err instanceof Error ? err.message : 'Failed to create your locket. Please try again.')
+      console.error('Setup failed details:', err)
+      const message = err instanceof Error ? err.message : 'Failed to create your locket. Please try again.';
+      setError(`${message} (Please check console for details)`)
     } finally {
       setIsLoading(false)
     }

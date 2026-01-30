@@ -80,10 +80,21 @@ export async function POST(request: NextRequest) {
 
     const locket = await createLocket(locketData)
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       { success: true, data: locket },
       { status: 201 }
     )
+
+    // Set locket-id cookie for middleware
+    response.cookies.set('locket-id', locket.id, {
+      httpOnly: false, // Allow client-side access if needed (though middleware handles it)
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+      path: '/',
+    })
+
+    return response
 
   } catch (error) {
     console.error('Error creating locket:', error)

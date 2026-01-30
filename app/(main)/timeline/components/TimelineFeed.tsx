@@ -1,12 +1,41 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { HelixLine } from '@/components/HelixLine';
 import { JournalCard } from './JournalCard';
 import { LoveNoteCard } from './LoveNoteCard';
-import { Clock } from 'lucide-react';
+import { EditMemoryModal } from './EditMemoryModal';
+import { CommentsPanel } from './CommentsPanel';
+import { MemoryDetailModal } from './MemoryDetailModal';
+import { Clock, Loader2 } from 'lucide-react';
+import { useLocket } from '@/contexts/LocketContext';
+import { useAuth } from '@/contexts/AuthContext';
 
-// Mock Data for the prototype
+interface MediaItem {
+    id: string;
+    storage_url: string;
+    storage_key: string;
+    filename: string;
+    file_type: string;
+    date_taken?: string;
+    place_name?: string;
+    latitude?: number;
+    longitude?: number;
+}
+
+interface MemoryGroup {
+    id: string;
+    title?: string;
+    description?: string;
+    date_taken?: string;
+    created_at: string;
+    is_milestone?: boolean;
+    media_items?: MediaItem[];
+    creator_name?: string;
+    creator_avatar_url?: string;
+}
+
 type JournalItem = {
     id: string;
     type: 'journal';
@@ -15,9 +44,13 @@ type JournalItem = {
     imageUrl?: string;
     videoUrl?: string;
     caption: string;
-    likes?: number;
+    likes: number;
+    isLiked: boolean;
     comments?: number;
+    authorName?: string;
     authorAvatarUrl?: string;
+    mediaItems: MediaItem[];
+    rawGroup: MemoryGroup;
 };
 
 type NoteItem = {
@@ -25,111 +58,178 @@ type NoteItem = {
     type: 'note';
     date: string;
     authorInitial?: string;
+    authorName?: string;
     authorAvatarUrl?: string;
     note: string;
+    rawGroup: MemoryGroup;
 };
 
 type TimelineItem = JournalItem | NoteItem;
 
-const MOCK_ITEMS: TimelineItem[] = [
-    {
-        id: '1',
-        type: 'journal',
-        date: 'Oct 24, 2023',
-        location: 'Central Park, NY',
-        imageUrl: 'https://images.unsplash.com/photo-1529619768328-e37af76c6fe5?auto=format&fit=crop&q=80&w=800', // Placeholder
-        caption: 'Our first autumn walk together. The leaves were perfect.',
-        likes: 1,
-        comments: 0,
-    },
-    {
-        id: '2',
-        type: 'note',
-        date: 'Oct 25, 2023',
-        authorInitial: 'A',
-        note: "I just realized how much I smile when I see your name pop up on my phone.",
-    },
-    {
-        id: '3',
-        type: 'journal',
-        date: 'Nov 1, 2023',
-        location: 'Cafe Lalo',
-        imageUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=800',
-        caption: 'Best hot chocolate ever. Remind me to order the cheesecake next time!',
-        likes: 1,
-        comments: 2,
-    },
-    {
-        id: '4',
-        type: 'note',
-        date: 'Nov 10, 2023',
-        authorInitial: 'S',
-        note: "Cannot wait for our trip next month! ✈️",
-    },
-];
-
-import { useLocket } from '@/contexts/LocketContext';
-import { Loader2 } from 'lucide-react';
+interface LocketMember {
+    id: string;
+    display_name?: string;
+    avatar_url?: string;
+    firebase_uid: string;
+}
 
 export function TimelineFeed() {
     const { currentLocket } = useLocket();
+    const { user } = useAuth();
     const [items, setItems] = React.useState<TimelineItem[]>([]);
+    const [members, setMembers] = React.useState<LocketMember[]>([]);
     const [loading, setLoading] = React.useState(true);
 
-    React.useEffect(() => {
-        async function fetchTimeline() {
-            if (!currentLocket) return;
+    // Modal state
+    const [editingMemory, setEditingMemory] = useState<MemoryGroup | null>(null);
+    const [commentingMemory, setCommentingMemory] = useState<{ id: string; title: string } | null>(null);
+    const [viewingMemory, setViewingMemory] = useState<MemoryGroup | null>(null);
+    const [viewingMemoryLike, setViewingMemoryLike] = useState({ isLiked: false, likeCount: 0 });
 
-            try {
-                const { getCurrentUserToken } = await import('@/lib/firebase/auth');
-                const token = await getCurrentUserToken();
-                const res = await fetch(`/api/memory-groups?locketId=${currentLocket.id}`, {
+    const fetchData = React.useCallback(async () => {
+        if (!currentLocket || !user) return;
+
+        try {
+            const { getCurrentUserToken } = await import('@/lib/firebase/auth');
+            const token = await getCurrentUserToken();
+
+            const [membersRes, timelineRes, likesRes] = await Promise.all([
+                fetch(`/api/lockets/${currentLocket.id}/users`, {
                     headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    // Transform API data to TimelineItem
-                    const mappedItems: TimelineItem[] = (data.memoryGroups || []).map((group: any) => {
-                        // Decide formatting based on content. If it has media, it's a journal. If text only, maybe note?
-                        // For now defaulting to Journal if media is present.
-                        const hasMedia = group.media_items && group.media_items.length > 0;
+                }),
+                fetch(`/api/memory-groups?locketId=${currentLocket.id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }),
+                // We'll batch fetch likes after we get memory groups
+                Promise.resolve(null)
+            ]);
 
-                        if (hasMedia) {
-                            return {
-                                id: group.id,
-                                type: 'journal',
-                                date: new Date(group.date_taken || group.created_at).toLocaleDateString(),
-                                location: group.media_items[0].place_name,
-                                imageUrl: group.media_items[0].storage_url,
-                                caption: group.title || group.description || '',
-                                likes: 0,
-                                comments: 0
-                            } as JournalItem;
-                        } else {
-                            return {
-                                id: group.id,
-                                type: 'note',
-                                date: new Date(group.created_at).toLocaleDateString(),
-                                authorInitial: '?', // TODO: map user ID to initial
-                                note: group.description || group.title || 'No content'
-                            } as NoteItem;
-                        }
-                    });
-                    setItems(mappedItems);
-                }
-            } catch (err) {
-                console.error("Error fetching timeline", err);
-            } finally {
-                setLoading(false);
+            if (membersRes.ok) {
+                const membersData = await membersRes.json();
+                setMembers(membersData.users || []);
             }
-        }
 
+            if (timelineRes.ok) {
+                const data = await timelineRes.json();
+                const memoryGroups = data.memoryGroups || [];
+
+                // Batch fetch likes for all memory groups
+                const memoryIds = memoryGroups.map((g: MemoryGroup) => g.id);
+                let likesMap = new Map<string, { liked: boolean; likeCount: number }>();
+
+                if (memoryIds.length > 0) {
+                    // For now, we'll get likes individually as we display
+                    // In a real app, we'd have a batch endpoint
+                }
+
+                const mappedItems: TimelineItem[] = memoryGroups.map((group: MemoryGroup) => {
+                    const hasMedia = group.media_items && group.media_items.length > 0;
+                    const creatorName = group.creator_name || '';
+                    const creatorAvatar = group.creator_avatar_url || '';
+                    const authorInitial = creatorName ? creatorName.charAt(0).toUpperCase() : '?';
+
+                    if (hasMedia) {
+                        const firstMedia = group.media_items![0];
+                        return {
+                            id: group.id,
+                            type: 'journal',
+                            date: new Date(firstMedia.date_taken || group.date_taken || group.created_at).toLocaleDateString('en-US', {
+                                month: 'short', day: 'numeric', year: 'numeric'
+                            }),
+                            location: firstMedia.place_name,
+                            imageUrl: firstMedia.storage_url,
+                            caption: group.title || group.description || '',
+                            likes: 0, // Will be fetched per card
+                            isLiked: false,
+                            comments: 0,
+                            authorName: creatorName,
+                            authorAvatarUrl: creatorAvatar,
+                            mediaItems: group.media_items!,
+                            rawGroup: group
+                        } as JournalItem;
+                    } else {
+                        return {
+                            id: group.id,
+                            type: 'note',
+                            date: new Date(group.created_at).toLocaleDateString('en-US', {
+                                month: 'short', day: 'numeric', year: 'numeric'
+                            }),
+                            authorInitial,
+                            authorName: creatorName,
+                            authorAvatarUrl: creatorAvatar,
+                            note: group.description || group.title || 'No content',
+                            rawGroup: group
+                        } as NoteItem;
+                    }
+                });
+                setItems(mappedItems);
+            }
+        } catch (err) {
+            console.error("Error fetching timeline", err);
+        } finally {
+            setLoading(false);
+        }
+    }, [currentLocket, user]);
+
+    React.useEffect(() => {
         if (currentLocket) {
-            fetchTimeline();
+            fetchData();
         } else {
             setLoading(false);
         }
-    }, [currentLocket]);
+    }, [currentLocket, fetchData]);
+
+    const handleEditSaved = () => {
+        fetchData(); // Refresh the timeline
+    };
+
+    const handleViewMemory = async (group: MemoryGroup) => {
+        setViewingMemory(group);
+
+        // Fetch like status for this memory
+        if (currentLocket) {
+            try {
+                const { getCurrentUserToken } = await import('@/lib/firebase/auth');
+                const token = await getCurrentUserToken();
+
+                const res = await fetch(`/api/memory-groups/${group.id}/like?locketId=${currentLocket.id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    setViewingMemoryLike({ isLiked: data.liked, likeCount: data.likeCount });
+                }
+            } catch (error) {
+                console.error('Failed to fetch like status:', error);
+            }
+        }
+    };
+
+    const handleViewMemoryLike = async () => {
+        if (!viewingMemory || !currentLocket) return;
+
+        try {
+            const { getCurrentUserToken } = await import('@/lib/firebase/auth');
+            const token = await getCurrentUserToken();
+
+            const res = await fetch(`/api/memory-groups/${viewingMemory.id}/like`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ locket_id: currentLocket.id })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setViewingMemoryLike({ isLiked: data.liked, likeCount: data.likeCount });
+            }
+        } catch (error) {
+            console.error('Failed to toggle like:', error);
+        }
+    };
 
     if (loading) {
         return (
@@ -161,9 +261,39 @@ export function TimelineFeed() {
             <div className="flex flex-col items-center justify-center mb-16 pt-8 animate-fade-in">
                 <div className="relative">
                     <div className="flex -space-x-4 mb-4">
-                        {/* Placeholder Avatars */}
-                        <div className="w-16 h-16 rounded-full border-4 border-background bg-rose-200 flex items-center justify-center text-rose-700 font-heading text-xl">A</div>
-                        <div className="w-16 h-16 rounded-full border-4 border-background bg-indigo-200 flex items-center justify-center text-indigo-700 font-heading text-xl">S</div>
+                        {members.length > 0 ? (
+                            members.slice(0, 2).map((member, index) => {
+                                const colors = [
+                                    { bg: 'bg-rose-200', text: 'text-rose-700' },
+                                    { bg: 'bg-indigo-200', text: 'text-indigo-700' }
+                                ];
+                                const colorSet = colors[index % colors.length];
+                                const initial = member.display_name?.charAt(0).toUpperCase() || '?';
+
+                                return member.avatar_url ? (
+                                    <div key={member.id} className="w-16 h-16 rounded-full border-4 border-background overflow-hidden relative">
+                                        <Image
+                                            src={member.avatar_url}
+                                            alt={member.display_name || 'Partner'}
+                                            fill
+                                            className="object-cover"
+                                        />
+                                    </div>
+                                ) : (
+                                    <div
+                                        key={member.id}
+                                        className={`w-16 h-16 rounded-full border-4 border-background ${colorSet.bg} flex items-center justify-center ${colorSet.text} font-heading text-xl`}
+                                    >
+                                        {initial}
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <>
+                                <div className="w-16 h-16 rounded-full border-4 border-background bg-rose-200 flex items-center justify-center text-rose-700 font-heading text-xl">?</div>
+                                <div className="w-16 h-16 rounded-full border-4 border-background bg-indigo-200 flex items-center justify-center text-indigo-700 font-heading text-xl">?</div>
+                            </>
+                        )}
                     </div>
                     <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-white px-3 py-1 rounded-full shadow-md border border-rose-100 flex items-center gap-1 whitespace-nowrap">
                         <Clock size={12} className="text-primary" />
@@ -182,28 +312,45 @@ export function TimelineFeed() {
                         <div
                             key={item.id}
                             className={`flex flex-col md:flex-row items-center ${isEven ? 'md:flex-row-reverse' : ''} gap-8 md:gap-16`}
+                            style={{
+                                animation: `fadeSlideIn 0.6s ease-out ${index * 0.1}s both`
+                            }}
                         >
                             {/* Content Card */}
                             <div className="w-full md:w-5/12 flex justify-center">
                                 {item.type === 'journal' ? (
                                     <JournalCard
-                                        {...item}
+                                        id={item.id}
+                                        date={item.date}
+                                        location={item.location}
+                                        imageUrl={item.imageUrl}
+                                        caption={item.caption}
+                                        likes={item.likes}
+                                        isLiked={item.isLiked}
+                                        comments={item.comments}
+                                        authorAvatarUrl={item.authorAvatarUrl}
+                                        mediaItems={item.mediaItems}
                                         align={isEven ? 'right' : 'left'}
-                                        className="animate-in slide-in-from-bottom-8 duration-700 fade-in"
+                                        className="transform-gpu"
+                                        onEdit={() => setEditingMemory(item.rawGroup)}
+                                        onComment={() => setCommentingMemory({
+                                            id: item.id,
+                                            title: item.caption || 'Memory'
+                                        })}
+                                        onImageClick={() => handleViewMemory(item.rawGroup)}
                                     />
                                 ) : (
                                     <LoveNoteCard
                                         {...item}
                                         align={isEven ? 'right' : 'left'}
-                                        className="animate-in slide-in-from-bottom-8 duration-700 delay-100 fade-in"
+                                        className="transform-gpu"
                                     />
                                 )}
                             </div>
 
                             {/* Center Marker on Helix */}
                             <div className="hidden md:flex w-2/12 justify-center relative">
-                                <div className="w-4 h-4 rounded-full bg-primary border-4 border-white shadow-md z-10" />
-                                {/* Optional date marker */}
+                                <div className="w-4 h-4 rounded-full bg-primary border-4 border-white shadow-md z-10 animate-pulse" />
                                 <div className="absolute top-8 text-xs font-bold text-primary/50 bg-white/50 px-2 py-0.5 rounded-full">
                                     {item.date.split(',')[0]}
                                 </div>
@@ -223,6 +370,74 @@ export function TimelineFeed() {
                 </div>
             )}
 
+            {/* Edit Memory Modal */}
+            {editingMemory && (
+                <EditMemoryModal
+                    isOpen={true}
+                    onClose={() => setEditingMemory(null)}
+                    memoryId={editingMemory.id}
+                    initialTitle={editingMemory.title || ''}
+                    initialDescription={editingMemory.description}
+                    initialDate={editingMemory.date_taken ? editingMemory.date_taken.split('T')[0] : undefined}
+                    mediaItems={editingMemory.media_items?.map(m => ({
+                        id: m.id,
+                        storage_url: m.storage_url,
+                        storage_key: m.storage_key,
+                        filename: m.filename,
+                        file_type: m.file_type,
+                        date_taken: m.date_taken,
+                        place_name: m.place_name
+                    }))}
+                    onSaved={handleEditSaved}
+                />
+            )}
+
+            {/* Comments Panel */}
+            {commentingMemory && (
+                <CommentsPanel
+                    isOpen={true}
+                    onClose={() => setCommentingMemory(null)}
+                    memoryId={commentingMemory.id}
+                    memoryTitle={commentingMemory.title}
+                />
+            )}
+
+            {/* Memory Detail Modal */}
+            {viewingMemory && (
+                <MemoryDetailModal
+                    isOpen={true}
+                    onClose={() => setViewingMemory(null)}
+                    memory={viewingMemory}
+                    isLiked={viewingMemoryLike.isLiked}
+                    likeCount={viewingMemoryLike.likeCount}
+                    onLike={handleViewMemoryLike}
+                    onEdit={() => {
+                        setViewingMemory(null);
+                        setEditingMemory(viewingMemory);
+                    }}
+                    onComment={() => {
+                        setViewingMemory(null);
+                        setCommentingMemory({
+                            id: viewingMemory.id,
+                            title: viewingMemory.title || 'Memory'
+                        });
+                    }}
+                />
+            )}
+
+            {/* Animation keyframes */}
+            <style jsx global>{`
+                @keyframes fadeSlideIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(30px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+            `}</style>
         </div>
     );
 }

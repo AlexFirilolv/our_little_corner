@@ -8,126 +8,226 @@ import {
   Upload as UploadIcon,
   X,
   Calendar as CalendarIcon,
-  Smile,
   Loader2,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Plus,
+  MapPin
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import exifr from 'exifr'
+
+interface FileWithPreview {
+  file: File
+  preview: string
+  id: string
+}
 
 export default function UploadMemory({ isMilestone = false }: { isMilestone?: boolean }) {
   const { user } = useAuth()
   const { currentLocket } = useLocket()
   const router = useRouter()
 
-  const [file, setFile] = useState<File | null>(null) // ... (rest of state)
-  const [preview, setPreview] = useState<string | null>(null)
+  const [files, setFiles] = useState<FileWithPreview[]>([])
   const [caption, setCaption] = useState('')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
-  const [mood, setMood] = useState('🙂')
+  const [location, setLocation] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
+  const [dateAutoFilled, setDateAutoFilled] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0]
-    if (selectedFile) processFile(selectedFile)
+    const selectedFiles = Array.from(e.target.files || [])
+    processFiles(selectedFiles)
+    // Reset input so the same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
   }
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
-    const droppedFile = e.dataTransfer.files?.[0]
-    if (droppedFile) processFile(droppedFile)
+    const droppedFiles = Array.from(e.dataTransfer.files)
+    processFiles(droppedFiles)
   }
 
-  const processFile = (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      alert('Please upload an image file')
+  const processFiles = async (newFiles: File[]) => {
+    const imageFiles = newFiles.filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'))
+
+    if (imageFiles.length === 0) {
+      alert('Please upload image or video files')
       return
     }
-    setFile(file)
-    const reader = new FileReader()
-    reader.onloadend = () => setPreview(reader.result as string)
-    reader.readAsDataURL(file)
+
+    const newFileItems: FileWithPreview[] = imageFiles.map(file => ({
+      file,
+      preview: '',
+      id: Math.random().toString(36).substring(7)
+      // Removed latitude/longitude init here, will add dynamically
+    }))
+
+    // Generate previews
+    newFileItems.forEach(item => {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setFiles(prev => prev.map(f =>
+          f.id === item.id ? { ...f, preview: reader.result as string } : f
+        ))
+      }
+      reader.readAsDataURL(item.file)
+    })
+
+    setFiles(prev => [...prev, ...newFileItems])
+
+    // Extract EXIF metadata for all new images
+    for (const item of newFileItems) {
+      if (item.file.type.startsWith('image/')) {
+        try {
+          // @ts-ignore - exifr is not typed perfectly
+          const metadata = await exifr.parse(item.file);
+          if (metadata) {
+            // Check for GPS
+            let lat = metadata.latitude;
+            let lon = metadata.longitude;
+
+            if (lat && lon) {
+              console.log(`GPS found for ${item.file.name}:`, lat, lon);
+
+              // 1. Store GPS in file item structure in state
+              setFiles(prev => prev.map(f =>
+                f.id === item.id ? { ...f, latitude: lat, longitude: lon } : f
+              ));
+
+              // 2. Auto-fill visible location text if empty
+              if (!location) {
+                // Format: "51.65, 19.48" (approx)
+                const latStr = typeof lat === 'number' ? lat.toFixed(4) : lat;
+                const lonStr = typeof lon === 'number' ? lon.toFixed(4) : lon;
+                setLocation(`${latStr}, ${lonStr}`);
+              }
+            }
+
+            // Auto-fill date from FIRST image if not set
+            if (!dateAutoFilled) {
+              let takenDate: Date | null = null;
+              if (metadata.DateTimeOriginal) takenDate = metadata.DateTimeOriginal;
+              else if (metadata.CreateDate) takenDate = metadata.CreateDate;
+
+              if (takenDate) {
+                setDate(takenDate.toISOString().split('T')[0]);
+                setDateAutoFilled(true);
+              }
+            }
+          }
+        } catch (e) {
+          console.log('EXIF extraction failed for', item.file.name, e);
+        }
+      }
+    }
+  }
+
+  const removeFile = (id: string) => {
+    setFiles(prev => prev.filter(f => f.id !== id))
   }
 
   const handleUpload = async () => {
-    if (!file || !currentLocket) return
+    if (files.length === 0 || !currentLocket) return
 
     setIsLoading(true)
+    setUploadProgress(0)
+
     try {
-      // 1. Get Presigned URL
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          filename: file.name,
-          fileType: file.type,
-          fileSize: file.size
-        })
-      })
+      const { getCurrentUserToken } = await import('@/lib/firebase/auth')
+      const token = await getCurrentUserToken()
 
-      if (!res.ok) throw new Error('Failed to get upload URL')
-      const { uploadUrl, publicUrl, storageKey } = await res.json()
-
-      // 2. Upload to GCS
-      const uploadRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': file.type },
-        body: file
-      })
-
-      if (!uploadRes.ok) throw new Error('Failed to upload file')
-
-      // 3. Create Memory Group
+      // 1. Create Memory Group first
       const groupRes = await fetch('/api/memory-groups', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + (await import('@/lib/firebase/auth').then(m => m.getCurrentUserToken()))
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           locket_id: currentLocket.id,
-          title: caption || (isMilestone ? 'New Milestone' : 'Untitled Memory'),
-          description: `Uploaded on ${new Date().toLocaleDateString()}`,
-          mood: mood,
-          is_milestone: isMilestone // Pass the flag
+          title: caption || undefined,
+          description: undefined,
+          date_taken: date,
+          is_milestone: isMilestone
         })
       })
 
       if (!groupRes.ok) throw new Error('Failed to create memory group')
       const { data: group } = await groupRes.json()
 
-      // 4. Create Media Item linked to Group
-      const mediaRes = await fetch('/api/media', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + (await import('@/lib/firebase/auth').then(m => m.getCurrentUserToken()))
-        },
-        body: JSON.stringify({
-          locket_id: currentLocket.id,
-          memory_group_id: group.id,
-          filename: file.name,
-          storage_key: storageKey,
-          storage_url: publicUrl,
-          file_type: file.type,
-          file_size: file.size,
-          title: caption,
-          date_taken: new Date(date)
+      // 2. Upload each file
+      const totalFiles = files.length
+      let uploadedCount = 0
+
+      for (const { file, latitude, longitude } of files as (FileWithPreview & { latitude?: number, longitude?: number })[]) {
+        // Get Presigned URL
+        const presignRes = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: file.name,
+            fileType: file.type,
+            fileSize: file.size
+          })
         })
-      })
 
-      if (!mediaRes.ok) throw new Error('Failed to save media metadata')
+        if (!presignRes.ok) throw new Error('Failed to get upload URL')
+        const { uploadUrl, publicUrl, storageKey } = await presignRes.json()
 
-      router.push('/timeline')
+        // Upload to GCS
+        const uploadRes = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': file.type },
+          body: file
+        })
+
+        if (!uploadRes.ok) throw new Error('Failed to upload file')
+
+        // Create Media Item
+        const mediaRes = await fetch('/api/media', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            locket_id: currentLocket.id,
+            memory_group_id: group.id,
+            filename: file.name,
+            storage_key: storageKey,
+            storage_url: publicUrl,
+            file_type: file.type,
+            file_size: file.size,
+            title: caption,
+            date_taken: new Date(date),
+            sort_order: uploadedCount,
+            ...(location && { place_name: location }),
+            // Add GPS coordinates if they exist
+            ...(latitude && longitude && { latitude, longitude })
+          })
+        })
+
+        if (!mediaRes.ok) throw new Error('Failed to save media metadata')
+
+        uploadedCount++
+        setUploadProgress(Math.round((uploadedCount / totalFiles) * 100))
+      }
+
+      router.push(isMilestone ? '/journey' : '/timeline')
 
     } catch (error) {
       console.error('Upload failed:', error)
       alert('Failed to upload memory. Please try again.')
     } finally {
       setIsLoading(false)
+      setUploadProgress(0)
     }
   }
 
@@ -143,98 +243,135 @@ export default function UploadMemory({ isMilestone = false }: { isMilestone?: bo
         <button onClick={() => router.back()} className="p-2 -ml-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
           <X className="w-6 h-6 text-[#181113] dark:text-white" />
         </button>
-        <h1 className="font-display italic text-3xl text-[#181113] dark:text-white">Add a Memory</h1>
+        <h1 className="font-display italic text-3xl text-[#181113] dark:text-white">
+          {isMilestone ? 'Add a Milestone' : 'Add a Memory'}
+        </h1>
       </div>
 
       <div className="flex flex-col gap-8">
 
-        {/* Dropzone / Preview */}
-        <div
-          className={`
-            aspect-[4/3] rounded-2xl border-2 border-dashed transition-all relative overflow-hidden flex flex-col items-center justify-center cursor-pointer
-            ${isDragging ? 'border-primary bg-primary/5' : 'border-black/10 dark:border-white/10 hover:border-primary/50 hover:bg-black/5 dark:hover:bg-white/5'}
-            ${preview ? 'border-none' : ''}
-          `}
-          onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={handleDrop}
-          onClick={() => !preview && fileInputRef.current?.click()}
-        >
-          {preview ? (
-            <>
-              <img src={preview} alt="Preview" className="w-full h-full object-cover" />
-              <button
-                onClick={(e) => { e.stopPropagation(); setFile(null); setPreview(null); }}
-                className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors backdrop-blur-md"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </>
-          ) : (
+        {/* Dropzone / Preview Grid */}
+        {files.length === 0 ? (
+          <div
+            className={`
+              aspect-[4/3] rounded-2xl border-2 border-dashed transition-all relative overflow-hidden flex flex-col items-center justify-center cursor-pointer
+              ${isDragging ? 'border-primary bg-primary/5' : 'border-black/10 dark:border-white/10 hover:border-primary/50 hover:bg-black/5 dark:hover:bg-white/5'}
+            `}
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+          >
             <div className="text-center p-6">
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary mx-auto mb-4">
                 <ImageIcon className="w-8 h-8" />
               </div>
               <p className="font-display text-xl text-[#181113] dark:text-white mb-2">Tap to upload</p>
-              <p className="text-[#875e69] dark:text-[#dcb8c3] text-sm">or drag and drop here</p>
+              <p className="text-[#875e69] dark:text-[#dcb8c3] text-sm">
+                {isMilestone ? 'Add multiple photos to capture this moment' : 'or drag and drop here'}
+              </p>
             </div>
-          )}
-          <input
-            type="file"
-            ref={fileInputRef}
-            className="hidden"
-            accept="image/*"
-            onChange={handleFileSelect}
-          />
-        </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Preview Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {files.map(({ id, preview, file }) => (
+                <div key={id} className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 group">
+                  {preview ? (
+                    <img src={preview} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Loader2 className="w-6 h-6 animate-spin text-primary/50" />
+                    </div>
+                  )}
+                  <button
+                    onClick={() => removeFile(id)}
+                    className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 hover:bg-black/70 transition-all backdrop-blur-md"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                  {file.type.startsWith('video/') && (
+                    <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/50 text-white text-xs rounded-full backdrop-blur-md">
+                      Video
+                    </div>
+                  )}
+                  {/* @ts-ignore - custom property on file object */}
+                  {files.find(f => f.id === id)?.latitude && (
+                    <div className="absolute top-2 left-2 p-1 bg-black/50 text-white rounded-full backdrop-blur-md" title="Location found">
+                      <MapPin size={12} />
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {/* Add More Button */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="aspect-square rounded-xl border-2 border-dashed border-black/10 dark:border-white/10 hover:border-primary/50 hover:bg-black/5 dark:hover:bg-white/5 flex flex-col items-center justify-center transition-all"
+              >
+                <Plus className="w-8 h-8 text-primary/50 mb-1" />
+                <span className="text-xs text-muted-foreground">Add more</span>
+              </button>
+            </div>
+
+            <p className="text-sm text-muted-foreground text-center">
+              {files.length} {files.length === 1 ? 'file' : 'files'} selected
+            </p>
+          </div>
+        )}
+
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          accept="image/*,video/*"
+          multiple
+          onChange={handleFileSelect}
+        />
 
         {/* Details Form */}
         <div className="flex flex-col gap-6">
 
           {/* Caption */}
           <div>
-            <label className="block text-sm font-medium text-[#875e69] dark:text-[#dcb8c3] mb-2 font-display uppercase tracking-wider">Caption</label>
+            <label className="block text-sm font-medium text-[#875e69] dark:text-[#dcb8c3] mb-2 font-display uppercase tracking-wider">
+              {isMilestone ? 'What milestone is this?' : 'Caption'}
+            </label>
             <textarea
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
-              placeholder="What's the story behind this moment?"
+              placeholder={isMilestone ? "First trip together, Moving in, Anniversary..." : "What's the story behind this moment?"}
               className="w-full bg-white dark:bg-[#2a1d21] border border-black/10 dark:border-white/10 rounded-xl p-4 text-lg font-sans placeholder:text-black/20 dark:placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none h-32"
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {/* Date */}
+          {/* Date and Location */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-[#875e69] dark:text-[#dcb8c3] mb-2 font-display uppercase tracking-wider">Date</label>
+              <label className="block text-sm font-medium text-[#875e69] dark:text-[#dcb8c3] mb-2 font-display uppercase tracking-wider">Date {dateAutoFilled && <span className="text-xs text-primary/50 normal-case">(from photo)</span>}</label>
               <div className="relative">
                 <input
                   type="date"
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  onChange={(e) => { setDate(e.target.value); setDateAutoFilled(false); }}
                   className="w-full bg-white dark:bg-[#2a1d21] border border-black/10 dark:border-white/10 rounded-xl p-4 pl-12 text-lg font-sans focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                 />
                 <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/50 w-5 h-5 pointer-events-none" />
               </div>
             </div>
 
-            {/* Mood */}
             <div>
-              <label className="block text-sm font-medium text-[#875e69] dark:text-[#dcb8c3] mb-2 font-display uppercase tracking-wider">Vibe</label>
-              <div className="flex gap-2">
-                {['😴', '😐', '🙂', '🥰', '🤩'].map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setMood(m)}
-                    className={`
-                        flex-1 aspect-square rounded-xl text-2xl flex items-center justify-center border transition-all
-                        ${mood === m
-                        ? 'bg-primary/10 border-primary shadow-inner scale-95'
-                        : 'bg-white dark:bg-[#2a1d21] border-black/10 dark:border-white/10 hover:border-primary/50'}
-                      `}
-                  >
-                    {m}
-                  </button>
-                ))}
+              <label className="block text-sm font-medium text-[#875e69] dark:text-[#dcb8c3] mb-2 font-display uppercase tracking-wider">Location</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="Where did this happen?"
+                  className="w-full bg-white dark:bg-[#2a1d21] border border-black/10 dark:border-white/10 rounded-xl p-4 pl-12 text-lg font-sans placeholder:text-black/20 dark:placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                />
+                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/50 w-5 h-5 pointer-events-none" />
               </div>
             </div>
           </div>
@@ -244,18 +381,18 @@ export default function UploadMemory({ isMilestone = false }: { isMilestone?: bo
         {/* Submit */}
         <Button
           onClick={handleUpload}
-          disabled={!file || isLoading}
+          disabled={files.length === 0 || isLoading}
           className="h-16 text-lg font-medium rounded-full bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all transform hover:-translate-y-1 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? (
             <>
               <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              Uploading...
+              Uploading... {uploadProgress}%
             </>
           ) : (
             <>
               <UploadIcon className="w-5 h-5 mr-2" />
-              Add to Locket
+              {isMilestone ? 'Save Milestone' : 'Add to Locket'}
             </>
           )}
         </Button>

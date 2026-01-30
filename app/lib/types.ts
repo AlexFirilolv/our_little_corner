@@ -1,9 +1,8 @@
-// Multi-tenant type definitions for "Our Little Corner" (Twofold)
+// Multi-tenant type definitions for Twofold
 
 export type LocketRole = 'admin' | 'participant';
 export type InviteStatus = 'pending' | 'accepted' | 'expired' | 'revoked';
 export type SessionType = 'firebase' | 'guest' | 'shared';
-export type MemoryMood = 'cozy' | 'silly' | 'romantic' | 'adventurous';
 
 // Backwards compatibility aliases
 export type CornerRole = LocketRole;
@@ -161,14 +160,14 @@ export interface UpdateLocketInvite {
 // Backwards compatibility alias
 export type UpdateCornerInvite = UpdateLocketInvite;
 
-// Updated Memory Groups (now locket-aware)
+// Memory Groups - A collection of related memories (e.g., a trip, an event)
 export interface MemoryGroup {
   id: string;
   locket_id: string;
   title?: string;
   description?: string;
-  is_locked: boolean;
-  unlock_date?: Date;
+  date_taken?: Date;
+  is_milestone?: boolean;
   cover_media_id?: string;
   created_by_firebase_uid?: string;
   created_at: Date;
@@ -176,27 +175,9 @@ export interface MemoryGroup {
   media_items?: MediaItem[];
   media_count?: number;
 
-  // Twofold features
-  mood?: MemoryMood;
-  is_milestone?: boolean;
-
-  // Advanced locking features
-  lock_visibility?: 'public' | 'private';
-  show_date_hint?: boolean;
-  show_image_preview?: boolean;
-  blur_percentage?: number;
-  unlock_hint?: string;
-  unlock_task?: string;
-  unlock_type?: 'scheduled' | 'task_based';
-  task_completed?: boolean;
-
-  // Public visibility controls
-  show_title?: boolean;
-  show_description?: boolean;
-  show_media_count?: boolean;
-  show_creation_date?: boolean;
-
   // Populated from joins
+  creator_name?: string;
+  creator_avatar_url?: string;
   locket?: Locket;
   created_by?: LocketUser;
 }
@@ -205,57 +186,17 @@ export interface CreateMemoryGroup {
   locket_id: string;
   title?: string;
   description?: string;
-  is_locked?: boolean;
-  unlock_date?: Date;
-  created_by_firebase_uid?: string;
-
-  // Twofold features
-  mood?: MemoryMood;
+  date_taken?: Date;
   is_milestone?: boolean;
-
-  // Advanced locking features
-  lock_visibility?: 'public' | 'private';
-  show_date_hint?: boolean;
-  show_image_preview?: boolean;
-  blur_percentage?: number;
-  unlock_hint?: string;
-  unlock_task?: string;
-  unlock_type?: 'scheduled' | 'task_based';
-  task_completed?: boolean;
-
-  // Public visibility controls
-  show_title?: boolean;
-  show_description?: boolean;
-  show_media_count?: boolean;
-  show_creation_date?: boolean;
+  created_by_firebase_uid: string;
 }
 
 export interface UpdateMemoryGroup {
   title?: string;
   description?: string;
-  is_locked?: boolean;
-  unlock_date?: Date | null;
-  cover_media_id?: string;
-
-  // Twofold features
-  mood?: MemoryMood;
+  date_taken?: Date;
   is_milestone?: boolean;
-
-  // Advanced locking features
-  lock_visibility?: 'public' | 'private';
-  show_date_hint?: boolean;
-  show_image_preview?: boolean;
-  blur_percentage?: number;
-  unlock_hint?: string;
-  unlock_task?: string;
-  unlock_type?: 'scheduled' | 'task_based';
-  task_completed?: boolean;
-
-  // Public visibility controls
-  show_title?: boolean;
-  show_description?: boolean;
-  show_media_count?: boolean;
-  show_creation_date?: boolean;
+  cover_media_id?: string;
 }
 
 // Bucket List Items
@@ -326,7 +267,7 @@ export interface CreateMediaItem {
   locket_id: string;
   memory_group_id?: string;
   filename: string;
-  original_name: string;
+  original_name?: string;
   storage_key: string;
   storage_url: string;
   file_type: string;
@@ -477,7 +418,7 @@ export interface MediaFilters {
 
 export interface MemoryGroupFilters {
   locket_id?: string;
-  is_locked?: boolean;
+  is_milestone?: boolean;
   created_by_firebase_uid?: string;
   date_from?: Date;
   date_to?: Date;
@@ -509,6 +450,7 @@ export interface AuthContextType {
   user: FirebaseUser | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signUp: (email: string, password: string, displayName?: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (data: { displayName?: string; photoURL?: string }) => Promise<void>;
@@ -590,3 +532,40 @@ export interface Notification {
   timestamp: Date;
   read: boolean;
 }
+
+// Memory Comments
+export type CommentType = 'comment' | 'activity';
+
+export interface MemoryComment {
+  id: string;
+  memory_group_id: string;
+  locket_id: string;
+  content: string;
+  comment_type: CommentType;
+  activity_action?: string; // 'title_changed', 'photo_added', 'photo_removed', etc.
+  author_firebase_uid?: string;
+  created_at: Date;
+  updated_at: Date;
+
+  // Populated from joins
+  author?: LocketUser;
+}
+
+export interface CreateMemoryComment {
+  memory_group_id: string;
+  locket_id: string;
+  content: string;
+  comment_type?: CommentType;
+  activity_action?: string;
+  author_firebase_uid?: string;
+}
+
+export type ActivityAction =
+  | 'title_changed'
+  | 'description_changed'
+  | 'photo_added'
+  | 'photo_removed'
+  | 'date_changed'
+  | 'location_changed'
+  | 'memory_created'
+  | 'memory_deleted';

@@ -10,15 +10,15 @@ export async function POST(request: NextRequest) {
     // Rate limiting for session creation
     const clientId = getClientIdentifier(request);
     const rateLimit = checkRateLimit(`auth_post_${clientId}`, RATE_LIMITS.AUTH_MODERATE);
-    
+
     if (!rateLimit.success) {
       const resetDate = new Date(rateLimit.resetTime);
       return NextResponse.json(
-        { 
+        {
           error: 'Too many authentication attempts. Please try again later.',
           resetTime: resetDate.toISOString()
         },
-        { 
+        {
           status: 429,
           headers: {
             'Retry-After': Math.ceil((rateLimit.resetTime - Date.now()) / 1000).toString(),
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
         }
       )
     }
-    
+
     const { idToken } = await request.json()
 
     if (!idToken) {
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     // Create session cookie that expires in 7 days
     const expiresIn = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
-    
+
     const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
 
     // Create the response
@@ -84,15 +84,15 @@ export async function DELETE(request: NextRequest) {
     // Light rate limiting for logout (more permissive)
     const clientId = getClientIdentifier(request);
     const rateLimit = checkRateLimit(`auth_delete_${clientId}`, RATE_LIMITS.AUTH_LENIENT);
-    
+
     if (!rateLimit.success) {
       const resetDate = new Date(rateLimit.resetTime);
       return NextResponse.json(
-        { 
+        {
           error: 'Too many logout attempts. Please try again later.',
           resetTime: resetDate.toISOString()
         },
-        { 
+        {
           status: 429,
           headers: {
             'Retry-After': Math.ceil((rateLimit.resetTime - Date.now()) / 1000).toString(),
@@ -120,6 +120,7 @@ export async function DELETE(request: NextRequest) {
     response.cookies.set('session', '', cookieOptions);
     response.cookies.set('auth-token', '', cookieOptions);
     response.cookies.set('our-corner-session', '', cookieOptions);
+    response.cookies.set('locket-id', '', cookieOptions);
 
     return response
 
@@ -155,10 +156,10 @@ export async function GET(request: NextRequest) {
 
     // Verify session cookie with Firebase Admin
     const decodedClaims = await adminAuth.verifySessionCookie(sessionCookie)
-    
+
     // Get user data from Firebase Auth
     const userRecord = await adminAuth.getUser(decodedClaims.uid)
-    
+
     const user = {
       uid: userRecord.uid,
       email: userRecord.email || null,
@@ -168,8 +169,8 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { 
-        authenticated: true, 
+      {
+        authenticated: true,
         user
       },
       { status: 200 }

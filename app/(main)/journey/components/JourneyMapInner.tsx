@@ -1,13 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { MapPin } from 'lucide-react';
+import { useLocket } from '@/contexts/LocketContext';
 
 // Fix for custom icons in Leaflet with Next.js
 const createIcon = (color: string) => {
-    // Dynamically require leaflet only on client side
     if (typeof window === 'undefined') return null;
     try {
         const L = require('leaflet');
@@ -22,24 +21,57 @@ const createIcon = (color: string) => {
     }
 };
 
-const MARKERS = [
-    { id: 1, pos: [40.7128, -74.0060] as [number, number], title: "New York", date: "Oct 2023" },
-    { id: 2, pos: [48.8566, 2.3522] as [number, number], title: "Paris", date: "Mar 2024" },
-    { id: 3, pos: [35.6762, 139.6503] as [number, number], title: "Tokyo", date: "planned" },
-];
-
-const PATH = [
-    [40.7128, -74.0060], // NY
-    [48.8566, 2.3522],   // Paris
-    [35.6762, 139.6503], // Tokyo
-] as [number, number][];
+interface MapMarker {
+    id: string;
+    pos: [number, number];
+    title: string;
+    date: string;
+}
 
 export default function JourneyMap() {
+    const { currentLocket } = useLocket();
     const [isMounted, setIsMounted] = useState(false);
+    const [markers, setMarkers] = useState<MapMarker[]>([]);
 
     useEffect(() => {
         setIsMounted(true);
     }, []);
+
+    useEffect(() => {
+        async function fetchLocations() {
+            if (!currentLocket) return;
+            try {
+                const { getCurrentUserToken } = await import('@/lib/firebase/auth');
+                const token = await getCurrentUserToken();
+                const res = await fetch(`/api/memory-groups?locketId=${currentLocket.id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const groups = data.memoryGroups || [];
+                    // Extract locations from media items that have coordinates
+                    const locationMarkers: MapMarker[] = [];
+                    groups.forEach((group: any) => {
+                        const media = group.media_items || [];
+                        media.forEach((item: any) => {
+                            if (item.latitude && item.longitude) {
+                                locationMarkers.push({
+                                    id: item.id,
+                                    pos: [item.latitude, item.longitude],
+                                    title: item.place_name || group.title || 'Memory',
+                                    date: new Date(item.date_taken || group.created_at).toLocaleDateString()
+                                });
+                            }
+                        });
+                    });
+                    setMarkers(locationMarkers);
+                }
+            } catch (e) {
+                console.error('Failed to fetch map locations:', e);
+            }
+        }
+        if (currentLocket) fetchLocations();
+    }, [currentLocket]);
 
     if (!isMounted) {
         return (
@@ -54,23 +86,17 @@ export default function JourneyMap() {
             <MapContainer
                 center={[30, 0]}
                 zoom={2}
-                scrollWheelZoom={false}
+                scrollWheelZoom={true}
                 className="w-full h-full"
-                style={{ background: '#FDF6F7' }} // Blush background
+                style={{ background: '#FDF6F7' }}
             >
                 <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" // Light themed map
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                    url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                 />
 
-                {/* Connection Line */}
-                <Polyline
-                    positions={PATH}
-                    pathOptions={{ color: '#BA4A68', weight: 2, opacity: 0.6, dashArray: '5, 10' }}
-                />
-
-                {MARKERS.map((marker) => {
-                    const icon = createIcon('#BA4A68');
+                {markers.map((marker) => {
+                    const icon = createIcon('#e11d48');
                     if (!icon) return null;
 
                     return (
@@ -89,6 +115,14 @@ export default function JourneyMap() {
                     );
                 })}
             </MapContainer>
+
+            {markers.length === 0 && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white/60 pointer-events-none">
+                    <p className="text-muted-foreground text-sm text-center px-4">
+                        Add locations to your memories to see them on the map
+                    </p>
+                </div>
+            )}
         </div>
     );
 }

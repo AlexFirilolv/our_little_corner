@@ -158,7 +158,7 @@ export default function InvitePage({ params }: { params: { code: string } }) {
           await switchLocket(invite.locket.id)
         }
         
-        // Redirect to the gallery
+        // Redirect to home (user now has a locket)
         setTimeout(() => {
           router.push('/')
         }, 2000)

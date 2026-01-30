@@ -17,7 +17,7 @@ export function Navigation() {
         {
             label: 'Timeline',
             href: '/timeline',
-            icon: Heart, // Using Heart for Timeline as it's the "Locket" core
+            icon: Heart,
         },
         {
             label: 'Upload',
@@ -119,17 +119,6 @@ export function Navigation() {
                     })}
                 </div>
 
-                <div className="mt-auto pt-6 border-t border-rose-100">
-                    <div className="flex items-center space-x-3 px-4">
-                        <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center text-primary">
-                            <Heart size={20} fill="currentColor" />
-                        </div>
-                        <div>
-                            <p className="text-sm font-medium text-truffle">Our Locket</p>
-                            <p className="text-xs text-muted-foreground">Est. 2024</p>
-                        </div>
-                    </div>
-                </div>
             </nav>
         </>
     );

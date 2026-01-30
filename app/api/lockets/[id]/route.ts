@@ -33,10 +33,21 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       { success: true, data: locket },
       { status: 200 }
     )
+
+    // Update locket-id cookie to reflect current selection/access
+    response.cookies.set('locket-id', locket.id, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+      path: '/',
+    })
+
+    return response
 
   } catch (error) {
     console.error('Error fetching locket:', error)

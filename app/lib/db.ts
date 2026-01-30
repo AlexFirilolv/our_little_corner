@@ -47,7 +47,6 @@ export const pool = new Pool({
 // Filtering and sorting types
 export interface MediaFilters {
   file_type?: string
-  is_locked?: boolean
   date_from?: Date
   date_to?: Date
   search_term?: string
@@ -121,32 +120,17 @@ export async function createMemoryGroup(groupData: CreateMemoryGroup): Promise<M
   try {
     const result = await query(`
       INSERT INTO memory_groups (
-        locket_id, title, description, is_locked, unlock_date, created_by_firebase_uid,
-        lock_visibility, show_date_hint, show_image_preview, blur_percentage,
-        unlock_hint, unlock_task, unlock_type, task_completed,
-        show_title, show_description, show_media_count, show_creation_date
+        locket_id, title, description, date_taken, is_milestone, created_by_firebase_uid
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `, [
       groupData.locket_id,
       groupData.title,
       groupData.description,
-      groupData.is_locked || false,
-      groupData.unlock_date,
-      groupData.created_by_firebase_uid,
-      groupData.lock_visibility || 'private',
-      groupData.show_date_hint || false,
-      groupData.show_image_preview || false,
-      groupData.blur_percentage || 80,
-      groupData.unlock_hint,
-      groupData.unlock_task,
-      groupData.unlock_type || 'scheduled',
-      groupData.task_completed || false,
-      groupData.show_title || false,
-      groupData.show_description || false,
-      groupData.show_media_count || false,
-      groupData.show_creation_date || false
+      groupData.date_taken || null,
+      groupData.is_milestone || false,
+      groupData.created_by_firebase_uid
     ])
 
     return result.rows[0]
@@ -159,11 +143,9 @@ export async function createMemoryGroup(groupData: CreateMemoryGroup): Promise<M
 /**
  * Get all memory groups with their media items
  */
-export async function getAllMemoryGroups(cornerId?: string, includeMedia = true, includeLocked = false): Promise<MemoryGroup[]> {
+export async function getAllMemoryGroups(cornerId?: string, includeMedia = true): Promise<MemoryGroup[]> {
   try {
-    // Build WHERE clause for locket and lock filtering
     const conditions = []
-
     const params = []
     let paramIndex = 1
 
@@ -173,19 +155,11 @@ export async function getAllMemoryGroups(cornerId?: string, includeMedia = true,
       paramIndex++
     }
 
-    if (!includeLocked) {
-      conditions.push(`(
-        (mg.is_locked = FALSE) 
-        OR (mg.is_locked = TRUE AND mg.lock_visibility = 'public')
-        OR (mg.unlock_date IS NOT NULL AND mg.unlock_date <= NOW())
-      )`)
-    }
-
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
 
     if (includeMedia) {
       const result = await query(`
-        SELECT 
+        SELECT
           mg.*,
           lu.display_name as creator_name,
           lu.avatar_url as creator_avatar_url,
@@ -204,6 +178,9 @@ export async function getAllMemoryGroups(cornerId?: string, includeMedia = true,
               'title', m.title,
               'note', m.note,
               'date_taken', m.date_taken,
+              'latitude', m.latitude,
+              'longitude', m.longitude,
+              'place_name', m.place_name,
               'sort_order', m.sort_order,
               'created_at', m.created_at,
               'updated_at', m.updated_at
@@ -215,13 +192,13 @@ export async function getAllMemoryGroups(cornerId?: string, includeMedia = true,
         LEFT JOIN locket_users lu ON mg.locket_id = lu.locket_id AND mg.created_by_firebase_uid = lu.firebase_uid
         ${whereClause}
         GROUP BY mg.id, lu.id
-        ORDER BY mg.created_at DESC
+        ORDER BY COALESCE(mg.date_taken, mg.created_at) DESC
       `, params)
       return result.rows
     } else {
       const result = await query(`
-        SELECT 
-          mg.*, 
+        SELECT
+          mg.*,
           lu.display_name as creator_name,
           lu.avatar_url as creator_avatar_url,
           COUNT(m.id)::integer as media_count
@@ -230,7 +207,7 @@ export async function getAllMemoryGroups(cornerId?: string, includeMedia = true,
         LEFT JOIN locket_users lu ON mg.locket_id = lu.locket_id AND mg.created_by_firebase_uid = lu.firebase_uid
         ${whereClause}
         GROUP BY mg.id, lu.id
-        ORDER BY mg.created_at DESC
+        ORDER BY COALESCE(mg.date_taken, mg.created_at) DESC
       `, params)
       return result.rows
     }
@@ -308,95 +285,21 @@ export async function updateMemoryGroup(id: string, updates: UpdateMemoryGroup):
       paramCount++
     }
 
-    if (updates.is_locked !== undefined) {
-      setParts.push(`is_locked = $${paramCount}`)
-      values.push(updates.is_locked)
+    if (updates.date_taken !== undefined) {
+      setParts.push(`date_taken = $${paramCount}`)
+      values.push(updates.date_taken)
       paramCount++
     }
 
-    if (updates.unlock_date !== undefined) {
-      setParts.push(`unlock_date = $${paramCount}`)
-      values.push(updates.unlock_date)
+    if (updates.is_milestone !== undefined) {
+      setParts.push(`is_milestone = $${paramCount}`)
+      values.push(updates.is_milestone)
       paramCount++
     }
 
     if (updates.cover_media_id !== undefined) {
       setParts.push(`cover_media_id = $${paramCount}`)
       values.push(updates.cover_media_id)
-      paramCount++
-    }
-
-    // Advanced locking features
-    if (updates.lock_visibility !== undefined) {
-      setParts.push(`lock_visibility = $${paramCount}`)
-      values.push(updates.lock_visibility)
-      paramCount++
-    }
-
-    if (updates.show_date_hint !== undefined) {
-      setParts.push(`show_date_hint = $${paramCount}`)
-      values.push(updates.show_date_hint)
-      paramCount++
-    }
-
-    if (updates.show_image_preview !== undefined) {
-      setParts.push(`show_image_preview = $${paramCount}`)
-      values.push(updates.show_image_preview)
-      paramCount++
-    }
-
-    if (updates.blur_percentage !== undefined) {
-      setParts.push(`blur_percentage = $${paramCount}`)
-      values.push(updates.blur_percentage)
-      paramCount++
-    }
-
-    if (updates.unlock_hint !== undefined) {
-      setParts.push(`unlock_hint = $${paramCount}`)
-      values.push(updates.unlock_hint)
-      paramCount++
-    }
-
-    if (updates.unlock_task !== undefined) {
-      setParts.push(`unlock_task = $${paramCount}`)
-      values.push(updates.unlock_task)
-      paramCount++
-    }
-
-    if (updates.unlock_type !== undefined) {
-      setParts.push(`unlock_type = $${paramCount}`)
-      values.push(updates.unlock_type)
-      paramCount++
-    }
-
-    if (updates.task_completed !== undefined) {
-      setParts.push(`task_completed = $${paramCount}`)
-      values.push(updates.task_completed)
-      paramCount++
-    }
-
-    // Public visibility controls
-    if (updates.show_title !== undefined) {
-      setParts.push(`show_title = $${paramCount}`)
-      values.push(updates.show_title)
-      paramCount++
-    }
-
-    if (updates.show_description !== undefined) {
-      setParts.push(`show_description = $${paramCount}`)
-      values.push(updates.show_description)
-      paramCount++
-    }
-
-    if (updates.show_media_count !== undefined) {
-      setParts.push(`show_media_count = $${paramCount}`)
-      values.push(updates.show_media_count)
-      paramCount++
-    }
-
-    if (updates.show_creation_date !== undefined) {
-      setParts.push(`show_creation_date = $${paramCount}`)
-      values.push(updates.show_creation_date)
       paramCount++
     }
 
@@ -407,8 +310,8 @@ export async function updateMemoryGroup(id: string, updates: UpdateMemoryGroup):
     values.push(id)
 
     const result = await query(`
-      UPDATE memory_groups 
-      SET ${setParts.join(', ')}
+      UPDATE memory_groups
+      SET ${setParts.join(', ')}, updated_at = NOW()
       WHERE id = $${paramCount}
       RETURNING *
     `, values)
@@ -506,26 +409,30 @@ export async function createMediaItem(mediaData: CreateMediaItem): Promise<Media
     const result = await query(`
       INSERT INTO media (
         locket_id, memory_group_id, filename, original_name, storage_key, storage_url, file_type, file_size,
-        width, height, duration, title, note, date_taken, sort_order, uploaded_by_firebase_uid
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        width, height, duration, title, note, date_taken, sort_order, uploaded_by_firebase_uid,
+        latitude, longitude, place_name
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
       RETURNING *
     `, [
       mediaData.locket_id,
       mediaData.memory_group_id,
       mediaData.filename,
-      mediaData.original_name,
+      mediaData.original_name || mediaData.filename, // Default to filename if not provided
       mediaData.storage_key,
       mediaData.storage_url,
       mediaData.file_type,
       mediaData.file_size,
-      mediaData.width,
-      mediaData.height,
-      mediaData.duration,
-      mediaData.title,
-      mediaData.note,
-      mediaData.date_taken,
+      mediaData.width || null,
+      mediaData.height || null,
+      mediaData.duration || null,
+      mediaData.title || null,
+      mediaData.note || null,
+      mediaData.date_taken || null,
       mediaData.sort_order || 0,
       mediaData.uploaded_by_firebase_uid,
+      mediaData.latitude || null,
+      mediaData.longitude || null,
+      mediaData.place_name || null,
     ])
 
     return result.rows[0]
@@ -1586,6 +1493,224 @@ export async function getDatabaseHealth(): Promise<{ status: string; timestamp: 
   } catch (error) {
     console.error('Database health check failed:', error)
     throw new Error('Database is unhealthy')
+  }
+}
+
+// =============================================================================
+// MEMORY COMMENTS FUNCTIONS
+// =============================================================================
+
+/**
+ * Get all comments for a memory group
+ */
+export async function getMemoryComments(memoryGroupId: string, locketId: string): Promise<any[]> {
+  try {
+    const result = await query(`
+      SELECT
+        mc.*,
+        lu.display_name as author_name,
+        lu.avatar_url as author_avatar_url
+      FROM memory_comments mc
+      LEFT JOIN locket_users lu ON mc.locket_id = lu.locket_id AND mc.author_firebase_uid = lu.firebase_uid
+      WHERE mc.memory_group_id = $1 AND mc.locket_id = $2
+      ORDER BY mc.created_at ASC
+    `, [memoryGroupId, locketId])
+    return result.rows
+  } catch (error) {
+    console.error('Error fetching memory comments:', error)
+    throw new Error('Failed to fetch comments')
+  }
+}
+
+/**
+ * Create a new comment or activity log
+ */
+export async function createMemoryComment(data: {
+  memory_group_id: string;
+  locket_id: string;
+  content: string;
+  comment_type?: 'comment' | 'activity';
+  activity_action?: string;
+  author_firebase_uid?: string;
+}): Promise<any> {
+  try {
+    const result = await query(`
+      INSERT INTO memory_comments (
+        memory_group_id, locket_id, content, comment_type, activity_action, author_firebase_uid
+      )
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *
+    `, [
+      data.memory_group_id,
+      data.locket_id,
+      data.content,
+      data.comment_type || 'comment',
+      data.activity_action || null,
+      data.author_firebase_uid || null,
+    ])
+    return result.rows[0]
+  } catch (error) {
+    console.error('Error creating memory comment:', error)
+    throw new Error('Failed to create comment')
+  }
+}
+
+/**
+ * Delete a comment
+ */
+export async function deleteMemoryComment(id: string, locketId: string): Promise<boolean> {
+  try {
+    const result = await query(
+      'DELETE FROM memory_comments WHERE id = $1 AND locket_id = $2 RETURNING id',
+      [id, locketId]
+    )
+    return result.rows.length > 0
+  } catch (error) {
+    console.error('Error deleting memory comment:', error)
+    throw new Error('Failed to delete comment')
+  }
+}
+
+/**
+ * Log an activity for a memory group
+ */
+export async function logMemoryActivity(
+  memoryGroupId: string,
+  locketId: string,
+  action: string,
+  description: string,
+  authorFirebaseUid?: string
+): Promise<any> {
+  return createMemoryComment({
+    memory_group_id: memoryGroupId,
+    locket_id: locketId,
+    content: description,
+    comment_type: 'activity',
+    activity_action: action,
+    author_firebase_uid: authorFirebaseUid,
+  })
+}
+
+// =============================================================================
+// LIKES
+// =============================================================================
+
+/**
+ * Toggle a like on a memory group (add if not exists, remove if exists)
+ */
+export async function toggleMemoryLike(
+  memoryGroupId: string,
+  locketId: string,
+  userFirebaseUid: string
+): Promise<{ liked: boolean; likeCount: number }> {
+  try {
+    // Check if like exists
+    const existingLike = await query(
+      'SELECT id FROM memory_likes WHERE memory_group_id = $1 AND user_firebase_uid = $2',
+      [memoryGroupId, userFirebaseUid]
+    )
+
+    if (existingLike.rows.length > 0) {
+      // Remove like
+      await query(
+        'DELETE FROM memory_likes WHERE memory_group_id = $1 AND user_firebase_uid = $2',
+        [memoryGroupId, userFirebaseUid]
+      )
+    } else {
+      // Add like
+      await query(
+        'INSERT INTO memory_likes (memory_group_id, locket_id, user_firebase_uid) VALUES ($1, $2, $3)',
+        [memoryGroupId, locketId, userFirebaseUid]
+      )
+    }
+
+    // Get updated count
+    const countResult = await query(
+      'SELECT COUNT(*) as count FROM memory_likes WHERE memory_group_id = $1',
+      [memoryGroupId]
+    )
+
+    return {
+      liked: existingLike.rows.length === 0, // Was not liked before, so now it is
+      likeCount: parseInt(countResult.rows[0].count, 10)
+    }
+  } catch (error) {
+    console.error('Error toggling like:', error)
+    throw error
+  }
+}
+
+/**
+ * Get like status and count for a memory group
+ */
+export async function getMemoryLikeStatus(
+  memoryGroupId: string,
+  userFirebaseUid: string
+): Promise<{ liked: boolean; likeCount: number }> {
+  try {
+    const [likeCheck, countResult] = await Promise.all([
+      query(
+        'SELECT id FROM memory_likes WHERE memory_group_id = $1 AND user_firebase_uid = $2',
+        [memoryGroupId, userFirebaseUid]
+      ),
+      query(
+        'SELECT COUNT(*) as count FROM memory_likes WHERE memory_group_id = $1',
+        [memoryGroupId]
+      )
+    ])
+
+    return {
+      liked: likeCheck.rows.length > 0,
+      likeCount: parseInt(countResult.rows[0].count, 10)
+    }
+  } catch (error) {
+    console.error('Error getting like status:', error)
+    throw error
+  }
+}
+
+/**
+ * Get like counts for multiple memory groups at once
+ */
+export async function getMemoryLikeCounts(
+  memoryGroupIds: string[],
+  userFirebaseUid: string
+): Promise<Map<string, { liked: boolean; likeCount: number }>> {
+  if (memoryGroupIds.length === 0) {
+    return new Map()
+  }
+
+  try {
+    // Get counts for all groups
+    const countsResult = await query(`
+      SELECT memory_group_id, COUNT(*) as count
+      FROM memory_likes
+      WHERE memory_group_id = ANY($1)
+      GROUP BY memory_group_id
+    `, [memoryGroupIds])
+
+    // Get user's likes
+    const userLikesResult = await query(`
+      SELECT memory_group_id
+      FROM memory_likes
+      WHERE memory_group_id = ANY($1) AND user_firebase_uid = $2
+    `, [memoryGroupIds, userFirebaseUid])
+
+    const userLikedSet = new Set<string>(userLikesResult.rows.map((r: any) => r.memory_group_id))
+    const countsMap = new Map<string, number>(countsResult.rows.map((r: any) => [r.memory_group_id, parseInt(r.count, 10)]))
+
+    const result = new Map<string, { liked: boolean; likeCount: number }>()
+    for (const id of memoryGroupIds) {
+      result.set(id, {
+        liked: userLikedSet.has(id),
+        likeCount: countsMap.get(id) || 0
+      })
+    }
+
+    return result
+  } catch (error) {
+    console.error('Error getting like counts:', error)
+    throw error
   }
 }
 

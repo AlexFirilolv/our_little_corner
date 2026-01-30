@@ -27,8 +27,8 @@ function getBucket() {
 
 export interface PresignedUrlResponse {
   uploadUrl: string
-  key: string
-  fileUrl: string
+  storageKey: string
+  publicUrl: string
 }
 
 /**
@@ -55,21 +55,17 @@ export async function generatePresignedUploadUrl(
       action: 'write',
       expires: Date.now() + 5 * 60 * 1000, // 5 minutes
       contentType: fileType,
-      extensionHeaders: {
-        'x-goog-meta-original-filename': filename,
-        'x-goog-meta-upload-timestamp': timestamp.toString(),
-      },
     })
 
     // Construct the public URL for accessing the file
     // GCP Public URL format: https://storage.googleapis.com/[BUCKET_NAME]/[KEY]
     const bucketName = process.env.GCS_BUCKET_NAME
-    const fileUrl = `https://storage.googleapis.com/${bucketName}/${key}`
+    const publicUrl = `https://storage.googleapis.com/${bucketName}/${key}`
 
     return {
       uploadUrl,
-      key,
-      fileUrl,
+      storageKey: key,
+      publicUrl,
     }
   } catch (error) {
     console.error('Error generating GCP presigned URL:', error)

@@ -38,9 +38,11 @@ export function LocketProvider({ children }: LocketProviderProps) {
       setCurrentLocket(null);
       setUserRole(null);
       setLoading(false);
-      // Clear saved locket from localStorage
+      setLoading(false);
+      // Clear saved locket from localStorage and cookie
       if (typeof window !== 'undefined') {
         localStorage.removeItem('selectedLocketId');
+        document.cookie = 'locket-id=; path=/; max-age=0; SameSite=Lax';
       }
     }
   }, [user]);
@@ -71,9 +73,10 @@ export function LocketProvider({ children }: LocketProviderProps) {
         const savedLocketId = localStorage.getItem('selectedLocketId');
         if (savedLocketId) {
           selectedLocket = data.find((l: Locket) => l.id === savedLocketId);
-          // If saved locket is not found, clear it from localStorage
+          // If saved locket is not found, clear it from localStorage and cookie
           if (!selectedLocket) {
             localStorage.removeItem('selectedLocketId');
+            document.cookie = 'locket-id=; path=/; max-age=0; SameSite=Lax';
           }
         }
       }
@@ -86,9 +89,11 @@ export function LocketProvider({ children }: LocketProviderProps) {
       if (selectedLocket) {
         setCurrentLocket(selectedLocket);
         setUserRole(selectedLocket.user_role || null);
-        // Save to localStorage
+        // Save to localStorage and cookie
         if (typeof window !== 'undefined') {
           localStorage.setItem('selectedLocketId', selectedLocket.id);
+          // Set cookie to expire in 7 days
+          document.cookie = `locket-id=${selectedLocket.id}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
         }
       } else {
         // Clear current locket if no valid locket is available
@@ -96,6 +101,7 @@ export function LocketProvider({ children }: LocketProviderProps) {
         setUserRole(null);
         if (typeof window !== 'undefined') {
           localStorage.removeItem('selectedLocketId');
+          document.cookie = 'locket-id=; path=/; max-age=0; SameSite=Lax';
         }
       }
     } catch (error) {
@@ -137,6 +143,12 @@ export function LocketProvider({ children }: LocketProviderProps) {
     setCurrentLocket(locket);
     setUserRole('admin');
 
+    // Save to localStorage and cookie
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('selectedLocketId', locket.id);
+      document.cookie = `locket-id=${locket.id}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+    }
+
     return locket;
   };
 
@@ -163,9 +175,10 @@ export function LocketProvider({ children }: LocketProviderProps) {
       setCurrentLocket(locket);
       setUserRole(locket.user_role || null);
 
-      // Save to localStorage
+      // Save to localStorage and cookie
       if (typeof window !== 'undefined') {
         localStorage.setItem('selectedLocketId', locket.id);
+        document.cookie = `locket-id=${locket.id}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
       }
     } catch (error) {
       console.error('Error switching locket:', error);

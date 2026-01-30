@@ -1,12 +1,12 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { 
-  onAuthStateChange, 
-  signInWithEmail, 
-  signUpWithEmail, 
+import {
+  onAuthStateChange,
+  signInWithEmail,
+  signUpWithEmail,
   signOut as firebaseSignOut,
-  updateUserProfile 
+  updateUserProfile
 } from '@/lib/firebase/auth';
 import type { FirebaseUser, AuthContextType } from '@/lib/types';
 
@@ -22,10 +22,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     let sessionSyncInProgress = false;
-    
+
     const unsubscribe = onAuthStateChange(async (user) => {
       setUser(user);
-      
+
       // If user is authenticated but we don't have a session cookie, create one
       if (user && !sessionSyncInProgress) {
         sessionSyncInProgress = true;
@@ -35,14 +35,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
             method: 'GET',
             credentials: 'include',
           });
-          
+
           const { authenticated } = await response.json();
-          
+
           // If not authenticated on the server side, create session
           if (!authenticated) {
             const { getCurrentUserToken } = await import('@/lib/firebase/auth');
             const idToken = await getCurrentUserToken();
-            
+
             if (idToken) {
               await fetch('/api/auth', {
                 method: 'POST',
@@ -70,7 +70,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           console.error('Error clearing session on signout:', error);
         }
       }
-      
+
       setLoading(false);
     });
 
@@ -107,10 +107,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         method: 'DELETE',
         credentials: 'include',
       });
-      
+
       // Then sign out from Firebase
       await firebaseSignOut();
-      
+
       // User state will be updated by onAuthStateChange
     } catch (error) {
       setLoading(false);
@@ -120,17 +120,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const updateProfile = async (data: { displayName?: string; photoURL?: string }): Promise<void> => {
     if (!user) throw new Error('No authenticated user');
-    
+
     await updateUserProfile(data);
-    
+
     // Update local user state
     setUser(prev => prev ? { ...prev, ...data } : null);
+  };
+
+  const signInWithGoogleProvider = async (): Promise<void> => {
+    setLoading(true);
+    try {
+      const { signInWithGoogle } = await import('@/lib/firebase/auth');
+      await signInWithGoogle();
+      // User state will be updated by onAuthStateChange
+    } catch (error) {
+      setLoading(false);
+      throw error;
+    }
   };
 
   const value: AuthContextType = {
     user,
     loading,
     signIn,
+    signInWithGoogle: signInWithGoogleProvider,
     signUp,
     signOut,
     updateProfile,

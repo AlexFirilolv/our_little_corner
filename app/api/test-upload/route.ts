@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       locket_id: currentLocket.id,
       title: `Test Upload ${new Date().toISOString()}`,
       description: 'Test memory group created via API',
-      is_locked: false,
+      is_milestone: false,
       created_by_firebase_uid: user.uid
     }
 
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     console.log('Created media item:', mediaItem)
 
     // Step 4: Fetch memory groups to verify
-    const memoryGroups = await getAllMemoryGroups(currentLocket.id, true, false)
+    const memoryGroups = await getAllMemoryGroups(currentLocket.id, true)
     console.log('Fetched memory groups:', memoryGroups.map(g => ({
       id: g.id,
       title: g.title,

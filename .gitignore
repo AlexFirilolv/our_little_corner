@@ -56,3 +56,5 @@ terraform.tfstate*
 *.tfvars
 
 CLAUDE.md
+
+temp

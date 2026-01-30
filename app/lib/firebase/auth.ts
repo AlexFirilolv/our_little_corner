@@ -1,5 +1,5 @@
 // Firebase Auth utilities for client-side authentication
-import { 
+import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -17,7 +17,7 @@ import type { FirebaseUser } from '../types';
 // Convert Firebase User to our FirebaseUser type
 export function mapFirebaseUser(user: User | null): FirebaseUser | null {
   if (!user) return null;
-  
+
   return {
     uid: user.uid,
     email: user.email,
@@ -60,12 +60,12 @@ export async function signUpWithEmail(email: string, password: string, displayNa
       throw new Error('Firebase not initialized. Please check your configuration and environment variables.');
     }
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    
+
     // Update display name if provided
     if (displayName && userCredential.user) {
       await updateProfile(userCredential.user, { displayName });
     }
-    
+
     const user = mapFirebaseUser(userCredential.user);
     if (!user) throw new Error('Failed to get user data');
     return user;
@@ -83,25 +83,25 @@ export async function signInWithGoogle(): Promise<FirebaseUser> {
         hasApiKey: !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
         hasAuthDomain: !!process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
         hasProjectId: !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-        currentDomain: typeof window !== 'undefined' ? window.location.hostname : 'server-side'
+        currentDomain: typeof window !== 'undefined' && window.location ? window.location.hostname : 'server-side'
       });
       throw new Error('Firebase not initialized. Please check your configuration and environment variables.');
     }
-    
+
     const provider = new GoogleAuthProvider();
     // Request additional scopes if needed
     provider.addScope('email');
     provider.addScope('profile');
-    
+
     // Set custom parameters for better UX
     provider.setCustomParameters({
       prompt: 'select_account'
     });
-    
+
     console.log('Attempting Google sign-in with provider:', provider);
     const result = await signInWithPopup(auth, provider);
     console.log('Google sign-in successful:', { uid: result.user.uid, email: result.user.email });
-    
+
     const user = mapFirebaseUser(result.user);
     if (!user) throw new Error('Failed to get user data');
     return user;
@@ -112,7 +112,7 @@ export async function signInWithGoogle(): Promise<FirebaseUser> {
       message: (error as AuthError)?.message,
       customData: (error as AuthError)?.customData
     });
-    
+
     // Handle specific Google Sign-In errors
     const authError = error as AuthError;
     if (authError.code === 'auth/popup-closed-by-user') {
@@ -124,7 +124,7 @@ export async function signInWithGoogle(): Promise<FirebaseUser> {
     } else if (authError.code === 'auth/internal-error') {
       throw new Error('Google Sign-In configuration error. Please check Firebase console settings for Google authentication.');
     }
-    
+
     throw handleAuthError(authError);
   }
 }
@@ -174,7 +174,7 @@ export function onAuthStateChange(callback: (user: FirebaseUser | null) => void)
   if (!auth) {
     // If Firebase not initialized, call callback with null and return empty unsubscribe
     callback(null);
-    return () => {};
+    return () => { };
   }
   return onAuthStateChanged(auth, (user) => {
     callback(mapFirebaseUser(user));
@@ -201,7 +201,7 @@ export async function getCurrentUserToken(): Promise<string | null> {
 // Handle Firebase Auth errors
 function handleAuthError(error: AuthError): Error {
   const { code, message } = error;
-  
+
   switch (code) {
     case 'auth/user-not-found':
     case 'auth/wrong-password':
