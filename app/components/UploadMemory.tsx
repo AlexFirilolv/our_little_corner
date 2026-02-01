@@ -313,9 +313,12 @@ export default function UploadMemory({ isMilestone = false }: { isMilestone?: bo
     setIsLoading(true)
     setUploadProgress(0)
 
+    let createdGroupId: string | null = null
+    let token: string | null = null
+
     try {
       const { getCurrentUserToken } = await import('@/lib/firebase/auth')
-      const token = await getCurrentUserToken()
+      token = await getCurrentUserToken()
 
       // 1. Create Memory Group first
       const groupRes = await fetch('/api/memory-groups', {
@@ -335,6 +338,7 @@ export default function UploadMemory({ isMilestone = false }: { isMilestone?: bo
 
       if (!groupRes.ok) throw new Error('Failed to create memory group')
       const { data: group } = await groupRes.json()
+      createdGroupId = group.id
 
       // 2. Upload each file
       const totalFiles = files.length
@@ -398,6 +402,21 @@ export default function UploadMemory({ isMilestone = false }: { isMilestone?: bo
 
     } catch (error) {
       console.error('Upload failed:', error)
+
+      // Clean up the orphaned memory group if it was created but file uploads failed
+      if (createdGroupId && token && currentLocket) {
+        try {
+          await fetch(`/api/memory-groups?id=${createdGroupId}&locket_id=${currentLocket.id}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          })
+        } catch (cleanupError) {
+          console.error('Failed to clean up orphaned memory group:', cleanupError)
+        }
+      }
+
       alert('Failed to upload memory. Please try again.')
     } finally {
       setIsLoading(false)
