@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: twofold
-        image: ghcr.io/alexfirilov/twofold:1769969378 # {"$imagepolicy": "flux-system:twofold"}
+        image: ghcr.io/alexfirilov/twofold:1769970753 # {"$imagepolicy": "flux-system:twofold"}
         imagePullPolicy: Always
         ports:
         - containerPort: 3000
