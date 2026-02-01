@@ -2,29 +2,30 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: app-deployment
+  namespace: twofold
   labels:
-    app: our-little-corner
+    app: twofold
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: our-little-corner
+      app: twofold
   template:
     metadata:
       labels:
-        app: our-little-corner
+        app: twofold
     spec:
       containers:
-      - name: our-little-corner
-        image: ghcr.io/alexfirilolv/our_little_corner:1769698678 # {"$imagepolicy": "flux-system:our-little-corner"}
+      - name: twofold
+        image: ghcr.io/alexfirilov/twofold:1769698678 # {"$imagepolicy": "flux-system:twofold"}
         imagePullPolicy: Always
         ports:
         - containerPort: 3000
         envFrom:
         - configMapRef:
-            name: our-little-corner-config
+            name: twofold-config
         - secretRef:
-            name: our-little-corner-secrets
+            name: twofold-secrets
         env:
         - name: POSTGRES_USER
           value: postgres
