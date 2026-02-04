@@ -12,50 +12,44 @@ The new Home Page (Dashboard) is designed to be a high-intimacy, mobile-first su
 
 ## UI Components
 
-### 1. Immersive Hero & Widget Stack (The Header)
+### 1. Immersive Hero & "The Story" Layout
 **Visuals**:
-- The top ~40-50% of the screen is a full-bleed background area.
-- **Background**: Displays user-selected "Cover Photos".
-    - **Behavior**: These cycle automatically (slideshow) or on app open to keep it fresh. Ideally supports multiple images.
-- **Foreground (The Stack)**:
-    - Overlaying the cover photo (at the bottom of the hero section) is a swipeable **Widget Stack** (Carousel).
-    - **Card 1 (Default)**: "Days Together" counter + Current Date.
-    - **Card 2**: Weather at partner's location (if location available).
-    - **Card 3**: "Next Countdown" (if set).
-- **Navigation**: The standard app header (logo/profile) overlays this hero section transparently.
+- **Full Screen**: The background cover photo takes up 100% of the viewport height (behind the UI).
+- **Effect**: Subtle "Ken Burns" (slow zoom/pan) effect on the background image to make it feel alive.
+- **Typography**:
+    - **Center Stage**: The "Days Together" counter is massive, cinematic, and emotional.
+    - **Font**: Editorial style (e.g., elegant serif mixed with clean sans).
+    - **Text**: "472 Days" (Hero) + "of us" (Subtext).
 
-### 2. The "Fridge Door" (Pinned Content)
-**Concept**: A digital sticky note area.
-- **Location**: Directly below the Hero section.
-- **Functionality**:
-    - Displays a *single* pinned item at a time.
-    - Users can specific items from the Timeline (Photo, Text Note, Voice Memo) to "Pin to Fridge".
-    - **Intention**: "Look at this photo I found," "Don't forget X," or just a sweet note.
-- **Empty State**: Simple "Pin something for [Partner] to see" prompt.
+### 2. The Glass Stack (Widget Layer)
+**Concept**: A frosted glass pane floating above the immersive background.
+- **Location**: Anchored at the bottom third of the screen.
+- **Visuals**:
+    - `backdrop-filter: blur(20px)`
+    - `background: rgba(255, 255, 255, 0.1)` (or dark mode equivalent)
+    - **Depth**: Soft shadows to separate it from the background photo.
+- **Content**:
+    - **Weather**: Minimalist icon.
+    - **Next Countdown**: "2 Days until [Event]".
 
-### 3. Memory Spotlight
-**Concept**: Algorithmic surfacing of nostalgia.
-- **Location**: Prominent card in the main feed.
-- **Behavior**:
-    - Rotates content periodically (e.g., every 4-6 hours).
-    - **Priority**:
-        1. "On This Day" (Historical memories from previous years).
-        2. "Last Weekend" (Recap of recent uploads).
-        3. "Random Favorite" (High-engagement photo from the past).
-- **Action**: Tapping opens the memory in full-screen detail view.
+### 3. The "Fridge" (Tactile Element)
+**Concept**: A physical object sitting *on top* of the digital glass layer.
+- **Visuals**:
+    - A **Polaroid** (if photo) or **Torn Note** (if text).
+    - **Physics**: Slightly rotated (-3deg or 4deg) to look imperfect and human.
+    - **Shadows**: Deep, realistic drop shadow to sell the "pinned" depth.
+- **Interaction**: Tap to view full screen or "flip" for details.
 
-### 4. Shared Queue (Bucket List Preview)
-**Concept**: Keeping future plans visible.
-- **Location**: Below Memory Spotlight.
-- **Content**: Two most recent *active* items from the Shared Bucket List.
-- **Interaction**: Quick tap to mark as complete or add a new item.
+### 4. Navigation (Floating Dock)
+- **Style**: A floating capsule at the bottom center (iOS Dynamic Island style but at the bottom).
+- **Behavior**: Hides on scroll (if content expands) or persists transparently.
 
 ---
 
 ## Technical Requirements (Database)
-- **Lockets Table**: Needs support for *multiple* cover photos (currently single `cover_photo_url`).
-    - *Migration Needed*: Move to a `locket_covers` table or change column to `cover_photo_urls` array (JSON/Array).
-- **Pinned Items**: New table or column to track the currently pinned `timeline_item_id` and `pinner_id`.
+- **Lockets Table**:
+    - Needs `locket_covers` (array or table) for the slideshow.
+    - Needs `pinned_timeline_item_id` for the Fridge.
 
 ---
 
@@ -64,47 +58,44 @@ The new Home Page (Dashboard) is designed to be a high-intimacy, mobile-first su
 
 ```markdown
 # Role
-You are an expert React/Next.js engineer with a keen eye for "Love-Tech" aesthetics (warm, inviting, fluid animations).
+You are a specialized "Love-Tech" UI/UX Engineer and React Developer. Your goal is to create a "Premium," "High-Fidelity" mobile dashboard that feels expensive, intimate, and alive.
 
 # Task
-Refactor the `app/(main)/page.tsx` and `Dashboard.tsx` to implement the new "Immersive Home" design specification defined in `docs/features/onboarding-dashboard.md`.
+Refactor `app/(main)/page.tsx` and `Dashboard.tsx` to replace the current layout with the **Immersive Home** design.
 
-# Specific Requirements
+# Core Aesthetic: "Cinematic & Tactile"
+- **No white backgrounds**: The app is built on top of the user's photos.
+- **Glassmorphism**: Use `backdrop-blur-xl` and `bg-white/10` for containers.
+- **Typography**: Use large, emotional serif fonts (e.g., `font-serif` class) for the counter.
+- **Depth**: The "Fridge" item (pinned photo/note) should look like it is physically sitting on top of the glass interface (rotate-3, shadow-2xl).
 
-## 1. Database Updates
-- **Cover Photos**: Update the schema to support *multiple* cover photos for a single Locket.
-    - Create a migration to add a `locket_covers` table (locket_id, photo_url, order, added_at).
-    - *Fallback*: If complex, use a JSONB column `cover_photos` on the `lockets` table.
-- **Fridge Pin**: Add a mechanism to "Pin" a specific memory/note.
-    - Add `pinned_memory_id` to the `lockets` table.
+# Components to Build
+1.  **ImmersiveBackground**:
+    - Fullscreen `absolute inset-0 -z-10`.
+    - Slideshow of cover photos with slow generic zoom (framer-motion).
+2.  **HeroCounter**:
+    - Centered vertically (or slightly above).
+    - Big text: "472 Days".
+    - Subtext: "Together".
+3.  **GlassWidgetDeck**:
+    - Floating container at bottom ~25%.
+    - Contains: WeatherWidget, CountdownWidget.
+4.  **FridgePin**:
+    - A component that renders a "Polaroid" or "Sticky Note".
+    - Position: Absolute, slightly overlapping the WidgetDeck or pinned to top-right of it.
+    - Style: `rotate-[-6deg]`, white border `p-2`, `shadow-xl`.
 
-## 2. Frontend Components (Mobile First)
-- **Hero Section**:
-    - Create a full-width container for the top ~45vh.
-    - Implement a background image slideshow (fade transition between user's cover photos).
-    - Implement a `WidgetCarousel` component that sits at the bottom of the hero.
-        - Slide 1: Days Together (Heart Icon + Counter).
-        - Slide 2: Next Big Event (Countdown).
-        - Slide 3: Weather (optional placeholder if API not ready).
-- **The Fridge**:
-    - Create a `PinnedNote` component.
-    - Visuals: Should look slightly distinct, like a card pinned to a board (paper texture or shadow depth).
-    - If a photo is pinned: Show the photo.
-    - If a note is pinned: Show the text in a handwritten-style font (optional) or elegant serif.
-- **Memory Spotlight**:
-    - Implement a `SpotlightCard` that fetches a memory based on "On This Day" logic or random fallback.
-    - Use `framer-motion` for smooth entry animations.
-- **Bucket List**:
-    - Refactor existing list widget to show top 2 active items with checkboxes.
+# Tech Stack / Constraints
+- **Design Tokens (CRITICAL)**:
+    - **Font**: MUST use `font-display` for all headings/counters (matches Landing Page).
+    - **Colors**: Use `#221016` (Deep Burgundy) as the base dark backing if needed, or `bg-background-dark`.
+    - **Glass**: Use `backdrop-blur-xl` + `bg-white/10` + `border-white/10` (matches Login glass card).
+    - **Icons**: Use `material-symbols-outlined` spans for "filled" icons or `lucide-react` for UI strokes (keep consistent with `app/page.tsx` usage of material symbols for emotive icons).
+- **Tailwind CSS**: Use extensive utility classes for blur, opacity, and gradients.
+- **Framer Motion**: Use `animate-in fade-in zoom-in` classes or `motion.div` for the background zoom.
 
-## 3. Aesthetics
-- Use the existing Tailwind theme (`rose-500`, `truffle` etc.).
-- Ensure the layout counts for the "tall phone" use case (elements shouldn't be too cramped at the top).
-- Add parallax scrolling effects for the Hero image if possible (image moves slower than scroll).
-
-## 4. Execution Order
-1.  Run DB Migrations.
-2.  Update API endpoints (`/api/locket`, `/api/memories/spotlight`).
-3.  Build the UI components.
-4.  Integrate into `Dashboard.tsx`.
+# Step-by-Step
+1.  **Install**: Ensure `framer-motion` and `clsx`/`tailwind-merge` are available.
+2.  **Scaffold**: specific components in `components/dashboard/`.
+3.  **Compose**: Assemble in `Dashboard.tsx`.
 ```

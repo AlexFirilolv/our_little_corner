@@ -35,6 +35,7 @@ export interface Locket {
   next_countdown_date?: Date;
   cover_photo_url?: string;
   location_origin?: string;
+  pinned_memory_id?: string | null; // Currently pinned memory for Fridge widget
 
   // Calculated fields (not in DB)
   member_count?: number;
@@ -68,6 +69,7 @@ export interface UpdateLocket {
   anniversary_date?: Date | string | null;
   cover_photo_url?: string | null;
   location_origin?: string | null;
+  pinned_memory_id?: string | null;
 }
 
 // Backwards compatibility alias
@@ -577,3 +579,29 @@ export type ActivityAction =
   | 'location_changed'
   | 'memory_created'
   | 'memory_deleted';
+
+// Locket Cover Photo for hero slideshow
+export interface LocketCover {
+  id: string;
+  locket_id: string;
+  photo_url: string;
+  storage_key?: string;
+  sort_order: number;
+  added_by_firebase_uid: string;
+  created_at: Date;
+}
+
+export interface CreateLocketCover {
+  locket_id: string;
+  photo_url: string;
+  storage_key?: string;
+  sort_order?: number;
+  added_by_firebase_uid: string;
+}
+
+// Spotlight Memory Response for "On This Day" feature
+export interface SpotlightMemory {
+  memory: MemoryGroup | null;
+  type: 'on_this_day' | 'random' | 'none';
+  years_ago?: number;
+}

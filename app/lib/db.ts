@@ -21,6 +21,9 @@ import type {
   CreateMediaItem,
   UpdateMediaItem,
   Session,
+  LocketCover,
+  CreateLocketCover,
+  SpotlightMemory,
   // Backwards compatibility aliases
   Corner,
   CreateCorner,
@@ -926,6 +929,12 @@ export async function updateLocket(id: string, updates: UpdateCorner, firebaseUi
       paramCount++
     }
 
+    if (updates.pinned_memory_id !== undefined) {
+      setParts.push(`pinned_memory_id = $${paramCount}`)
+      values.push(updates.pinned_memory_id)
+      paramCount++
+    }
+
     if (setParts.length === 0) {
       throw new Error('No valid updates provided')
     }
@@ -934,7 +943,7 @@ export async function updateLocket(id: string, updates: UpdateCorner, firebaseUi
     values.push(id)
 
     const result = await query(`
-      UPDATE lockets 
+      UPDATE lockets
       SET ${setParts.join(', ')}
       WHERE id = $${paramCount}
       RETURNING *
@@ -1749,6 +1758,362 @@ export async function getMemoryLikeCounts(
   } catch (error) {
     console.error('Error getting like counts:', error)
     throw error
+  }
+}
+
+// =============================================================================
+// LOCKET COVERS (Hero Slideshow)
+// =============================================================================
+
+/**
+ * Get all cover photos for a locket, ordered by sort_order
+ */
+export async function getLocketCovers(locketId: string): Promise<LocketCover[]> {
+  try {
+    const result = await query(`
+      SELECT * FROM locket_covers
+      WHERE locket_id = $1
+      ORDER BY sort_order ASC, created_at ASC
+    `, [locketId])
+    return result.rows
+  } catch (error) {
+    console.error('Error fetching locket covers:', error)
+    throw new Error('Failed to fetch locket covers')
+  }
+}
+
+/**
+ * Create a new cover photo for a locket
+ */
+export async function createLocketCover(data: CreateLocketCover): Promise<LocketCover> {
+  try {
+    // Get the max sort_order for this locket
+    const maxOrderResult = await query(`
+      SELECT COALESCE(MAX(sort_order), -1) as max_order
+      FROM locket_covers
+      WHERE locket_id = $1
+    `, [data.locket_id])
+
+    const nextOrder = data.sort_order ?? (maxOrderResult.rows[0].max_order + 1)
+
+    const result = await query(`
+      INSERT INTO locket_covers (locket_id, photo_url, storage_key, sort_order, added_by_firebase_uid)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `, [
+      data.locket_id,
+      data.photo_url,
+      data.storage_key || null,
+      nextOrder,
+      data.added_by_firebase_uid
+    ])
+    return result.rows[0]
+  } catch (error) {
+    console.error('Error creating locket cover:', error)
+    throw new Error('Failed to create locket cover')
+  }
+}
+
+/**
+ * Delete a cover photo
+ */
+export async function deleteLocketCover(id: string, locketId: string): Promise<boolean> {
+  try {
+    const result = await query(`
+      DELETE FROM locket_covers
+      WHERE id = $1 AND locket_id = $2
+      RETURNING id
+    `, [id, locketId])
+    return result.rowCount > 0
+  } catch (error) {
+    console.error('Error deleting locket cover:', error)
+    throw new Error('Failed to delete locket cover')
+  }
+}
+
+/**
+ * Reorder cover photos
+ */
+export async function reorderLocketCovers(locketId: string, coverIds: string[]): Promise<void> {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+
+    for (let i = 0; i < coverIds.length; i++) {
+      await client.query(`
+        UPDATE locket_covers
+        SET sort_order = $1
+        WHERE id = $2 AND locket_id = $3
+      `, [i, coverIds[i], locketId])
+    }
+
+    await client.query('COMMIT')
+  } catch (error) {
+    await client.query('ROLLBACK')
+    console.error('Error reordering locket covers:', error)
+    throw new Error('Failed to reorder locket covers')
+  } finally {
+    client.release()
+  }
+}
+
+// =============================================================================
+// SPOTLIGHT MEMORY ("On This Day" / Random)
+// =============================================================================
+
+/**
+ * Get memories from this day in previous years
+ */
+export async function getMemoriesOnThisDay(locketId: string): Promise<MemoryGroup[]> {
+  try {
+    const result = await query(`
+      SELECT
+        mg.*,
+        lu.display_name as creator_name,
+        lu.avatar_url as creator_avatar_url,
+        json_agg(
+          json_build_object(
+            'id', m.id,
+            'filename', m.filename,
+            'original_name', m.original_name,
+            'storage_key', m.storage_key,
+            'storage_url', m.storage_url,
+            'file_type', m.file_type,
+            'file_size', m.file_size,
+            'width', m.width,
+            'height', m.height,
+            'duration', m.duration,
+            'title', m.title,
+            'note', m.note,
+            'date_taken', m.date_taken,
+            'latitude', m.latitude,
+            'longitude', m.longitude,
+            'place_name', m.place_name,
+            'sort_order', m.sort_order,
+            'created_at', m.created_at,
+            'updated_at', m.updated_at
+          ) ORDER BY m.sort_order, m.created_at
+        ) FILTER (WHERE m.id IS NOT NULL) as media_items,
+        COUNT(m.id)::integer as media_count
+      FROM memory_groups mg
+      LEFT JOIN media m ON mg.id = m.memory_group_id AND mg.locket_id = m.locket_id
+      LEFT JOIN locket_users lu ON mg.locket_id = lu.locket_id AND mg.created_by_firebase_uid = lu.firebase_uid
+      WHERE mg.locket_id = $1
+        AND EXTRACT(MONTH FROM COALESCE(mg.date_taken, mg.created_at)) = EXTRACT(MONTH FROM CURRENT_DATE)
+        AND EXTRACT(DAY FROM COALESCE(mg.date_taken, mg.created_at)) = EXTRACT(DAY FROM CURRENT_DATE)
+        AND EXTRACT(YEAR FROM COALESCE(mg.date_taken, mg.created_at)) < EXTRACT(YEAR FROM CURRENT_DATE)
+      GROUP BY mg.id, lu.id
+      ORDER BY COALESCE(mg.date_taken, mg.created_at) DESC
+    `, [locketId])
+    return result.rows
+  } catch (error) {
+    console.error('Error fetching memories on this day:', error)
+    throw new Error('Failed to fetch memories on this day')
+  }
+}
+
+/**
+ * Get a random memory from the locket (with media)
+ */
+export async function getRandomMemory(locketId: string): Promise<MemoryGroup | null> {
+  try {
+    const result = await query(`
+      SELECT
+        mg.*,
+        lu.display_name as creator_name,
+        lu.avatar_url as creator_avatar_url,
+        json_agg(
+          json_build_object(
+            'id', m.id,
+            'filename', m.filename,
+            'original_name', m.original_name,
+            'storage_key', m.storage_key,
+            'storage_url', m.storage_url,
+            'file_type', m.file_type,
+            'file_size', m.file_size,
+            'width', m.width,
+            'height', m.height,
+            'duration', m.duration,
+            'title', m.title,
+            'note', m.note,
+            'date_taken', m.date_taken,
+            'latitude', m.latitude,
+            'longitude', m.longitude,
+            'place_name', m.place_name,
+            'sort_order', m.sort_order,
+            'created_at', m.created_at,
+            'updated_at', m.updated_at
+          ) ORDER BY m.sort_order, m.created_at
+        ) FILTER (WHERE m.id IS NOT NULL) as media_items,
+        COUNT(m.id)::integer as media_count
+      FROM memory_groups mg
+      LEFT JOIN media m ON mg.id = m.memory_group_id AND mg.locket_id = m.locket_id
+      LEFT JOIN locket_users lu ON mg.locket_id = lu.locket_id AND mg.created_by_firebase_uid = lu.firebase_uid
+      WHERE mg.locket_id = $1
+      GROUP BY mg.id, lu.id
+      HAVING COUNT(m.id) > 0
+      ORDER BY RANDOM()
+      LIMIT 1
+    `, [locketId])
+    return result.rows[0] || null
+  } catch (error) {
+    console.error('Error fetching random memory:', error)
+    throw new Error('Failed to fetch random memory')
+  }
+}
+
+/**
+ * Get spotlight memory: prioritize "On This Day", fallback to random
+ */
+export async function getSpotlightMemory(locketId: string): Promise<SpotlightMemory> {
+  try {
+    // First try "On This Day"
+    const onThisDayMemories = await getMemoriesOnThisDay(locketId)
+
+    if (onThisDayMemories.length > 0) {
+      const memory = onThisDayMemories[0]
+      const memoryDate = memory.date_taken ? new Date(memory.date_taken) : new Date(memory.created_at)
+      const yearsAgo = new Date().getFullYear() - memoryDate.getFullYear()
+
+      return {
+        memory,
+        type: 'on_this_day',
+        years_ago: yearsAgo
+      }
+    }
+
+    // Fallback to random
+    const randomMemory = await getRandomMemory(locketId)
+
+    if (randomMemory) {
+      return {
+        memory: randomMemory,
+        type: 'random'
+      }
+    }
+
+    return {
+      memory: null,
+      type: 'none'
+    }
+  } catch (error) {
+    console.error('Error fetching spotlight memory:', error)
+    return { memory: null, type: 'none' }
+  }
+}
+
+// =============================================================================
+// PINNED MEMORY ("Fridge")
+// =============================================================================
+
+/**
+ * Pin a memory to the locket (for Fridge widget)
+ */
+export async function pinMemory(locketId: string, memoryId: string, firebaseUid: string): Promise<void> {
+  try {
+    // Verify user has permission
+    const permission = await query(`
+      SELECT cu.role
+      FROM locket_users cu
+      WHERE cu.locket_id = $1 AND cu.firebase_uid = $2
+    `, [locketId, firebaseUid])
+
+    if (permission.rows.length === 0) {
+      throw new Error('Permission denied')
+    }
+
+    // Verify memory belongs to this locket
+    const memoryCheck = await query(`
+      SELECT id FROM memory_groups WHERE id = $1 AND locket_id = $2
+    `, [memoryId, locketId])
+
+    if (memoryCheck.rows.length === 0) {
+      throw new Error('Memory not found in this locket')
+    }
+
+    await query(`
+      UPDATE lockets
+      SET pinned_memory_id = $1, updated_at = NOW()
+      WHERE id = $2
+    `, [memoryId, locketId])
+  } catch (error) {
+    console.error('Error pinning memory:', error)
+    throw error
+  }
+}
+
+/**
+ * Unpin the current memory from the locket
+ */
+export async function unpinMemory(locketId: string, firebaseUid: string): Promise<void> {
+  try {
+    // Verify user has permission
+    const permission = await query(`
+      SELECT cu.role
+      FROM locket_users cu
+      WHERE cu.locket_id = $1 AND cu.firebase_uid = $2
+    `, [locketId, firebaseUid])
+
+    if (permission.rows.length === 0) {
+      throw new Error('Permission denied')
+    }
+
+    await query(`
+      UPDATE lockets
+      SET pinned_memory_id = NULL, updated_at = NOW()
+      WHERE id = $1
+    `, [locketId])
+  } catch (error) {
+    console.error('Error unpinning memory:', error)
+    throw error
+  }
+}
+
+/**
+ * Get the currently pinned memory for a locket
+ */
+export async function getPinnedMemory(locketId: string): Promise<MemoryGroup | null> {
+  try {
+    const result = await query(`
+      SELECT
+        mg.*,
+        lu.display_name as creator_name,
+        lu.avatar_url as creator_avatar_url,
+        json_agg(
+          json_build_object(
+            'id', m.id,
+            'filename', m.filename,
+            'original_name', m.original_name,
+            'storage_key', m.storage_key,
+            'storage_url', m.storage_url,
+            'file_type', m.file_type,
+            'file_size', m.file_size,
+            'width', m.width,
+            'height', m.height,
+            'duration', m.duration,
+            'title', m.title,
+            'note', m.note,
+            'date_taken', m.date_taken,
+            'latitude', m.latitude,
+            'longitude', m.longitude,
+            'place_name', m.place_name,
+            'sort_order', m.sort_order,
+            'created_at', m.created_at,
+            'updated_at', m.updated_at
+          ) ORDER BY m.sort_order, m.created_at
+        ) FILTER (WHERE m.id IS NOT NULL) as media_items,
+        COUNT(m.id)::integer as media_count
+      FROM lockets l
+      JOIN memory_groups mg ON l.pinned_memory_id = mg.id
+      LEFT JOIN media m ON mg.id = m.memory_group_id AND mg.locket_id = m.locket_id
+      LEFT JOIN locket_users lu ON mg.locket_id = lu.locket_id AND mg.created_by_firebase_uid = lu.firebase_uid
+      WHERE l.id = $1 AND l.pinned_memory_id IS NOT NULL
+      GROUP BY mg.id, lu.id
+    `, [locketId])
+    return result.rows[0] || null
+  } catch (error) {
+    console.error('Error fetching pinned memory:', error)
+    throw new Error('Failed to fetch pinned memory')
   }
 }
 
