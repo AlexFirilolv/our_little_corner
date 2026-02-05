@@ -4,7 +4,7 @@
 The new Home Page (Dashboard) is designed to be a high-intimacy, mobile-first surface that greets the couple every time they open the app. It moves away from a utility-focused list to an emotional, dynamic space.
 
 ## Core Design Principles
-1.  **Mobile-First**: Optimized for tall aspect ratios (18:9, 19.5:9).
+1.  **Mobile-First**: Optimized for modern smartphones aspect ratios (18:9, 19.5:9), while not forgetting about desktops.
 2.  **Alive**: The screen should never look exactly the same twice (cycling photos, dynamic spotlight).
 3.  **Intimate**: Focus on "Us" content (memories, notes, plans) rather than generic "apps".
 

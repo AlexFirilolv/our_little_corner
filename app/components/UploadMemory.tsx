@@ -359,11 +359,25 @@ export default function UploadMemory({ isMilestone = false }: { isMilestone?: bo
         if (!presignRes.ok) throw new Error('Failed to get upload URL')
         const { uploadUrl, publicUrl, storageKey } = await presignRes.json()
 
-        // Upload to GCS
-        const uploadRes = await fetch(uploadUrl, {
+        // Upload to GCS using resumable upload protocol
+        // Step 1: Initiate resumable upload session
+        const initRes = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': file.type,
+            'x-goog-resumable': 'start',
+          },
+        })
+
+        if (!initRes.ok) throw new Error('Failed to initiate upload')
+
+        const sessionUrl = initRes.headers.get('Location')
+        if (!sessionUrl) throw new Error('No upload session URL returned')
+
+        // Step 2: Upload file data to the session URL
+        const uploadRes = await fetch(sessionUrl, {
           method: 'PUT',
-          headers: { 'Content-Type': file.type },
-          body: file
+          body: file,
         })
 
         if (!uploadRes.ok) throw new Error('Failed to upload file')
