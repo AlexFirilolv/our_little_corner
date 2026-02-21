@@ -1332,15 +1332,18 @@ export async function revokeCornerInvite(inviteId: string, firebaseUid: string):
 /**
  * Get invite by locket invite code and email (public access)
  */
-export async function getInviteByCodeAndEmail(inviteCode: string, email: string): Promise<CornerInvite & { locket?: any }> {
+export async function getInviteByLocketCodeAndEmail(inviteCode: string, email: string): Promise<CornerInvite & { locket?: any, invited_by?: any }> {
   try {
     const result = await query(`
       SELECT 
         ci.*,
         c.name as corner_name,
-        c.description as corner_description
+        c.description as corner_description,
+        cu.display_name as invited_by_name,
+        cu.email as invited_by_email
       FROM locket_invites ci
       JOIN lockets c ON ci.locket_id = c.id
+      LEFT JOIN locket_users cu ON ci.invited_by_firebase_uid = cu.firebase_uid AND cu.locket_id = ci.locket_id
       WHERE c.invite_code = $1 AND ci.email = $2 AND ci.status = 'pending'
       ORDER BY ci.created_at DESC
       LIMIT 1
@@ -1353,6 +1356,7 @@ export async function getInviteByCodeAndEmail(inviteCode: string, email: string)
     const invite = result.rows[0]
     return {
       ...invite,
+      invited_by: invite.invited_by_name ? { name: invite.invited_by_name, email: invite.invited_by_email } : undefined,
       locket: {
         id: invite.locket_id,
         name: invite.corner_name,
@@ -1398,49 +1402,32 @@ export async function acceptCornerInvite(
       throw new Error('Permission denied - email mismatch')
     }
 
-    // Check if user is already a member
-    const existingUser = await client.query(`
-      SELECT id FROM locket_users 
-      WHERE locket_id = $1 AND firebase_uid = $2
-    `, [invite.locket_id, firebaseUid])
-
-    if (existingUser.rows.length > 0) {
-      // Mark invite as accepted and return existing user
-      await client.query(`
-        UPDATE locket_invites 
-        SET status = 'accepted', accepted_at = NOW()
-        WHERE id = $1
-      `, [inviteId])
-
-      await client.query('COMMIT')
-      return existingUser.rows[0]
-    }
+    // Update invite status
+    await client.query(`
+      UPDATE locket_invites
+      SET status = 'accepted', accepted_at = NOW()
+      WHERE id = $1
+    `, [inviteId])
 
     // Add user to locket
     const userResult = await client.query(`
-      INSERT INTO locket_users (
-        locket_id, firebase_uid, display_name, email, 
-        role, can_upload, can_edit_others_media, can_manage_locket
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO locket_users (locket_id, firebase_uid, email, display_name, role, can_upload, can_edit_others_media)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ON CONFLICT (locket_id, firebase_uid) 
+      DO UPDATE SET 
+        role = EXCLUDED.role,
+        can_upload = EXCLUDED.can_upload,
+        can_edit_others_media = EXCLUDED.can_edit_others_media
       RETURNING *
     `, [
       invite.locket_id,
       firebaseUid,
-      displayName,
       email,
+      displayName,
       invite.role,
       invite.can_upload,
-      invite.can_edit_others_media,
-      invite.role === 'admin' // Admins can manage locket
+      invite.can_edit_others_media
     ])
-
-    // Mark invite as accepted
-    await client.query(`
-      UPDATE locket_invites 
-      SET status = 'accepted', accepted_at = NOW()
-      WHERE id = $1
-    `, [inviteId])
 
     await client.query('COMMIT')
     return userResult.rows[0]
@@ -1453,6 +1440,97 @@ export async function acceptCornerInvite(
     client.release()
   }
 }
+
+/**
+ * Get locket by invite code
+ */
+export async function getLocketByInviteCode(inviteCode: string): Promise<Corner | null> {
+  try {
+    const result = await query(`
+      SELECT 
+        c.*,
+        COUNT(DISTINCT cu.id) as member_count,
+        COUNT(DISTINCT m.id) as media_count,
+        (SELECT admin.display_name FROM locket_users admin WHERE admin.locket_id = c.id AND admin.role = 'admin' LIMIT 1) as admin_name,
+        (SELECT admin.email FROM locket_users admin WHERE admin.locket_id = c.id AND admin.role = 'admin' LIMIT 1) as admin_email
+      FROM lockets c
+      LEFT JOIN locket_users cu ON c.id = cu.locket_id
+      LEFT JOIN media m ON c.id = m.locket_id
+      WHERE c.invite_code = $1
+      GROUP BY c.id
+    `, [inviteCode])
+
+    if (result.rows.length === 0) return null
+
+    const row = result.rows[0]
+    return {
+      ...row,
+      member_count: parseInt(row.member_count) || 0,
+      media_count: parseInt(row.media_count) || 0,
+      invited_by: row.admin_email ? { name: row.admin_name || 'Admin', email: row.admin_email } : undefined
+    }
+  } catch (error) {
+    console.error('Error getting locket by invite code:', error)
+    throw new Error('Failed to get locket')
+  }
+}
+
+/**
+ * Join locket by invite code
+ */
+export async function joinLocketByInviteCode(
+  inviteCode: string,
+  firebaseUid: string,
+  email: string,
+  displayName: string
+): Promise<CornerUser> {
+  const client = await pool.connect()
+
+  try {
+    await client.query('BEGIN')
+
+    // Get the locket
+    const locketResult = await client.query(`
+      SELECT * FROM lockets WHERE invite_code = $1
+    `, [inviteCode])
+
+    if (locketResult.rows.length === 0) {
+      throw new Error('Locket not found')
+    }
+
+    const locket = locketResult.rows[0]
+
+    // Check if user is already a member
+    const existingUser = await client.query(`
+      SELECT * FROM locket_users WHERE locket_id = $1 AND firebase_uid = $2
+    `, [locket.id, firebaseUid])
+
+    if (existingUser.rows.length > 0) {
+      throw new Error('User is already a member of this locket')
+    }
+
+    // Add user to locket as a participant
+    const userResult = await client.query(`
+      INSERT INTO locket_users (locket_id, firebase_uid, email, display_name, role, can_upload, can_edit_others_media)
+      VALUES ($1, $2, $3, $4, 'participant', true, false)
+      RETURNING *
+    `, [locket.id, firebaseUid, email, displayName])
+
+    await client.query('COMMIT')
+    return userResult.rows[0]
+
+  } catch (error) {
+    await client.query('ROLLBACK')
+    console.error('Error joining locket by invite code:', error)
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
+// =============================================================================
+// SHARED ACCESS TOKENS FUNCTIONS
+// =============================================================================
 
 /**
  * Get pending invites for a user by email
@@ -2130,7 +2208,6 @@ export async function getPinnedMemory(locketId: string): Promise<MemoryGroup | n
 // Invite function aliases
 export const revokeLocketInvite = revokeCornerInvite
 export const acceptLocketInvite = acceptCornerInvite
-export const getInviteByLocketCodeAndEmail = getInviteByCodeAndEmail
 
 // Graceful shutdown
 process.on('SIGINT', () => {

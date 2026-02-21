@@ -29,10 +29,10 @@ export function LocketProvider({ children }: LocketProviderProps) {
 
   // Load user's lockets when user changes
   useEffect(() => {
-    if (user) {
+    if (user?.uid) {
       loadUserLockets();
       loadPendingInvites();
-    } else {
+    } else if (!user) {
       setUserLockets([]);
       setPendingInvites([]);
       setCurrentLocket(null);
@@ -45,7 +45,7 @@ export function LocketProvider({ children }: LocketProviderProps) {
         document.cookie = 'locket-id=; path=/; max-age=0; SameSite=Lax';
       }
     }
-  }, [user]);
+  }, [user?.uid]);
 
   const loadUserLockets = async () => {
     if (!user) return;

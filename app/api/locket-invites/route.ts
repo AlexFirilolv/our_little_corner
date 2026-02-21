@@ -14,13 +14,47 @@ export async function GET(request: NextRequest) {
     const email = searchParams.get('email')
 
     // Handle public invite lookup by locket code and email
-    if (code && email) {
+    if (code) {
       try {
-        const invite = await getInviteByLocketCodeAndEmail(code, email)
-        return NextResponse.json(
-          { success: true, invite },
-          { status: 200 }
-        )
+        if (email) {
+          const invite = await getInviteByLocketCodeAndEmail(code, email)
+          return NextResponse.json(
+            { success: true, invite },
+            { status: 200 }
+          )
+        } else {
+          // Find the locket directly by code
+          const { getLocketByInviteCode } = await import('@/lib/db')
+          const locket = await getLocketByInviteCode(code)
+
+          if (!locket) {
+            return NextResponse.json(
+              { success: false, invite: null, error: 'Locket not found' },
+              { status: 404 }
+            )
+          }
+
+          // Return a mock invite object so the UI gracefully handles the code
+          const mockInvite = {
+            id: 'generic-invite-code',
+            locket_id: locket.id,
+            email: '', // No specific email for a generic invite link
+            role: 'participant',
+            status: 'pending',
+            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+            invited_by: (locket as any).invited_by, // injected from getLocketByInviteCode
+            locket: {
+              id: locket.id,
+              name: locket.name,
+              description: locket.description
+            }
+          }
+
+          return NextResponse.json(
+            { success: true, invite: mockInvite },
+            { status: 200 }
+          )
+        }
       } catch (error) {
         console.error('Public invite lookup error:', error)
         return NextResponse.json(
