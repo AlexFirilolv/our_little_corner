@@ -33,69 +33,84 @@ export default function UploadPage() {
   if (step === 'note') return <CreateNote onCancel={() => setStep('select')} />;
   if (step === 'bucket') return <CreateBucketItem onCancel={() => setStep('select')} />;
 
+  const cards = [
+    {
+      key: 'memory' as const,
+      icon: ImageIcon,
+      label: 'Memory',
+      sub: 'Photo or Video',
+      surfaceColor: 'bg-surface-rose',
+      iconColor: 'text-primary',
+    },
+    {
+      key: 'milestone' as const,
+      icon: Flag,
+      label: 'Milestone',
+      sub: 'Major Life Event',
+      surfaceColor: 'bg-surface-amber',
+      iconColor: 'text-accent',
+    },
+    {
+      key: 'note' as const,
+      icon: StickyNote,
+      label: 'Love Note',
+      sub: 'Text Only',
+      surfaceColor: 'bg-surface-rose',
+      iconColor: 'text-primary',
+    },
+    {
+      key: 'bucket' as const,
+      icon: List,
+      label: 'Bucket List',
+      sub: 'Shared Goal',
+      surfaceColor: 'bg-surface-green',
+      iconColor: 'text-secondary',
+    },
+  ];
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-2xl min-h-screen">
-      <h1 className="font-heading text-3xl text-primary font-bold mb-2 text-center">Create New Entry</h1>
-      <p className="text-muted-foreground text-center mb-8">What would you like to add to {currentLocket.name}?</p>
+    <div className="container mx-auto px-4 py-10 max-w-2xl min-h-screen">
+      <div className="text-center mb-10 animate-fade-in">
+        <p className="overline text-faint mb-3">Add to your locket</p>
+        <h1 className="font-display text-display text-foreground tracking-tight">
+          Create Something
+        </h1>
+        <p className="text-muted mt-2 font-serif italic">
+          What would you like to add to {currentLocket.name}?
+        </p>
+      </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <button
-          onClick={() => setStep('memory')}
-          className="flex flex-col items-center justify-center p-6 bg-white rounded-2xl border border-rose-100 shadow-sm hover:shadow-md hover:border-primary/50 transition-all group aspect-square"
-        >
-          <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center mb-4 text-primary group-hover:scale-110 transition-transform">
-            <ImageIcon size={32} />
-          </div>
-          <span className="font-heading text-lg font-bold text-truffle">Memory</span>
-          <span className="text-xs text-muted-foreground mt-1">Photo or Video</span>
-        </button>
-
-        <button
-          onClick={() => setStep('milestone')}
-          className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-indigo-50 to-white rounded-2xl border border-indigo-100 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all group aspect-square"
-        >
-          <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center mb-4 text-indigo-600 group-hover:scale-110 transition-transform">
-            <Flag size={32} />
-          </div>
-          <span className="font-heading text-lg font-bold text-truffle">Milestone</span>
-          <span className="text-xs text-muted-foreground mt-1">Major Life Event</span>
-        </button>
-
-        <button
-          onClick={() => setStep('note')}
-          className="flex flex-col items-center justify-center p-6 bg-amber-50/50 rounded-2xl border border-amber-100 shadow-sm hover:shadow-md hover:border-amber-300 transition-all group aspect-square"
-        >
-          <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mb-4 text-amber-600 group-hover:scale-110 transition-transform">
-            <StickyNote size={32} />
-          </div>
-          <span className="font-heading text-lg font-bold text-truffle">Love Note</span>
-          <span className="text-xs text-muted-foreground mt-1">Text Only</span>
-        </button>
-
-        <button
-          onClick={() => setStep('bucket')}
-          className="flex flex-col items-center justify-center p-6 bg-emerald-50/50 rounded-2xl border border-emerald-100 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all group aspect-square"
-        >
-          <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4 text-emerald-600 group-hover:scale-110 transition-transform">
-            <List size={32} />
-          </div>
-          <span className="font-heading text-lg font-bold text-truffle">Bucket List</span>
-          <span className="text-xs text-muted-foreground mt-1">Shared Goal</span>
-        </button>
+      <div className="grid grid-cols-2 gap-3 md:gap-4">
+        {cards.map((card) => {
+          const Icon = card.icon;
+          return (
+            <button
+              key={card.key}
+              onClick={() => setStep(card.key)}
+              className="group relative overflow-hidden rounded-xl border border-border bg-elevated transition-all duration-200 hover:border-border-emphasis hover:shadow-md hover:-translate-y-0.5 aspect-square flex flex-col items-center justify-center p-6"
+            >
+              <div className={`relative w-14 h-14 rounded-xl ${card.surfaceColor} flex items-center justify-center mb-4 ${card.iconColor} group-hover:scale-105 transition-transform duration-200`}>
+                <Icon size={28} strokeWidth={1.5} />
+              </div>
+              <span className="font-display text-subheading text-foreground">{card.label}</span>
+              <span className="text-caption text-faint mt-1">{card.sub}</span>
+            </button>
+          );
+        })}
       </div>
 
       <button
         onClick={() => router.back()}
-        className="mt-8 flex items-center justify-center w-full text-muted-foreground hover:text-primary transition-colors py-2"
+        className="mt-10 flex items-center justify-center w-full text-faint hover:text-muted transition-colors py-2 group"
       >
-        <ArrowLeft size={16} className="mr-2" />
-        Back
+        <ArrowLeft size={16} className="mr-2 group-hover:-translate-x-1 transition-transform" />
+        <span className="text-body-sm">Back</span>
       </button>
     </div>
   );
 }
 
-// Sub-components for simpler forms (Note & Bucket)
+// ── Sub-components ──
 
 function CreateNote({ onCancel }: { onCancel: () => void }) {
   const { currentLocket } = useLocket();
@@ -137,28 +152,31 @@ function CreateNote({ onCancel }: { onCancel: () => void }) {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-lg min-h-screen flex flex-col">
-      <button onClick={onCancel} className="mb-6 flex items-center text-muted-foreground hover:text-primary transition-colors self-start">
-        <ArrowLeft size={20} className="mr-1" /> Back
+      <button onClick={onCancel} className="mb-6 flex items-center text-faint hover:text-muted transition-colors self-start group">
+        <ArrowLeft size={20} className="mr-1 group-hover:-translate-x-1 transition-transform" /> Back
       </button>
 
-      <h1 className="font-heading text-2xl font-bold text-amber-700 mb-6 flex items-center gap-2">
-        <StickyNote className="text-amber-500" />
+      <h1 className="font-display text-heading text-foreground mb-2 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-surface-rose flex items-center justify-center">
+          <StickyNote className="text-primary w-5 h-5" />
+        </div>
         Write a Love Note
       </h1>
+      <p className="text-muted text-body-sm font-serif italic mb-6">Something sweet for your person</p>
 
       <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Write something sweet..."
-          className="flex-1 w-full bg-[#fdfbf7] border border-amber-200 rounded-xl p-6 text-lg font-serif italic text-truffle placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-amber-200/50 resize-none shadow-inner"
+          className="flex-1 w-full bg-elevated border border-border rounded-xl p-6 text-lg font-serif italic text-foreground/80 placeholder:text-faint resize-none min-h-[200px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
           autoFocus
         />
 
         <button
           type="submit"
           disabled={!note.trim() || loading}
-          className="mt-6 w-full py-4 bg-amber-500 hover:bg-amber-600 text-white rounded-full font-bold shadow-lg shadow-amber-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="mt-6 w-full py-4 bg-primary hover:brightness-110 text-primary-foreground rounded-lg font-bold shadow-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {loading ? <Loader2 className="animate-spin" /> : <Check />}
           Post Note
@@ -223,36 +241,39 @@ function CreateBucketItem({ onCancel }: { onCancel: () => void }) {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-lg min-h-screen">
-      <button onClick={onCancel} className="mb-6 flex items-center text-muted-foreground hover:text-primary transition-colors self-start">
-        <ArrowLeft size={20} className="mr-1" /> Back
+      <button onClick={onCancel} className="mb-6 flex items-center text-faint hover:text-muted transition-colors self-start group">
+        <ArrowLeft size={20} className="mr-1 group-hover:-translate-x-1 transition-transform" /> Back
       </button>
 
-      <h1 className="font-heading text-2xl font-bold text-emerald-700 mb-6 flex items-center gap-2">
-        <List className="text-emerald-500" />
+      <h1 className="font-display text-heading text-foreground mb-2 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-surface-green flex items-center justify-center">
+          <List className="text-secondary w-5 h-5" />
+        </div>
         Add to Bucket List
       </h1>
+      <p className="text-muted text-body-sm font-serif italic mb-6">A dream you share together</p>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label className="block text-sm font-bold text-emerald-700 uppercase tracking-wide mb-2">Goal / Dream</label>
+          <label className="overline text-faint mb-3 block">Goal / Dream</label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g., Visit Japan"
-            className="w-full bg-emerald-50/30 border border-emerald-200 rounded-xl p-4 text-lg font-medium text-truffle focus:outline-none focus:ring-2 focus:ring-emerald-200/50 placeholder:text-muted-foreground/50"
+            className="w-full bg-elevated border border-border rounded-md px-4 py-3 text-body font-body text-foreground placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             autoFocus
           />
         </div>
 
         {error && (
-          <p className="text-red-500 text-sm text-center">{error}</p>
+          <p className="text-destructive text-body-sm text-center">{error}</p>
         )}
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full font-bold shadow-lg shadow-emerald-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full py-4 bg-primary hover:brightness-110 text-primary-foreground rounded-lg font-bold shadow-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {loading ? <Loader2 className="animate-spin" /> : <Check />}
           Add to List

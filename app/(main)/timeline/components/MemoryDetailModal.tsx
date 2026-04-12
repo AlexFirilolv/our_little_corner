@@ -225,7 +225,7 @@ export function MemoryDetailModal({
 
                     {/* Title */}
                     {memory.title && (
-                        <h2 className="font-heading text-xl text-truffle dark:text-white mb-2">
+                        <h2 className="font-display text-heading text-foreground mb-2">
                             {memory.title}
                         </h2>
                     )}

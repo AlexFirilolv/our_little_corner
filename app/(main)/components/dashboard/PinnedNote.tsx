@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
 import { Pin, MessageCircle, Loader2, RefreshCw } from 'lucide-react';
 import { FridgeDetailModal, ReplacePinModal } from './FridgeDetailModal';
 import type { MemoryGroup } from '@/lib/types';
@@ -53,16 +52,11 @@ export function PinnedNote({ locketId, partnerName = 'your partner' }: PinnedNot
 
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0, rotate: -3 }}
-        animate={{ opacity: 1, rotate: -3 }}
-        transition={{ delay: 0.3, type: 'spring', stiffness: 100 }}
-        className="relative bg-white/95 rounded-lg shadow-2xl p-3 pb-4 max-w-[340px] mx-auto group"
-      >
+      <div className="relative bg-elevated rounded-xl shadow-md p-3 pb-4 max-w-[340px] mx-auto group border border-border rotate-[-3deg] hover:rotate-0 transition-transform duration-200">
         {/* Pushpin */}
         <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-          <div className="w-6 h-6 rounded-full bg-red-500 shadow-lg flex items-center justify-center ring-2 ring-red-400/50">
-            <Pin className="w-3 h-3 text-white fill-white transform rotate-45" />
+          <div className="w-6 h-6 rounded-full bg-primary shadow-sm flex items-center justify-center ring-2 ring-primary/30">
+            <Pin className="w-3 h-3 text-primary-foreground fill-primary-foreground transform rotate-45" />
           </div>
         </div>
 
@@ -73,7 +67,7 @@ export function PinnedNote({ locketId, partnerName = 'your partner' }: PinnedNot
               e.stopPropagation();
               setShowReplaceModal(true);
             }}
-            className="p-1.5 bg-black/40 backdrop-blur-sm rounded-full text-white hover:bg-black/60 transition-colors"
+            className="p-1.5 bg-foreground/10 rounded-lg text-muted hover:bg-foreground/20 hover:text-foreground transition-colors"
             aria-label="Replace pin"
           >
             <RefreshCw className="w-3 h-3" />
@@ -82,7 +76,7 @@ export function PinnedNote({ locketId, partnerName = 'your partner' }: PinnedNot
 
         {/* Header */}
         <div className="text-center mb-2 pt-2">
-          <span className="text-[10px] font-bold text-primary/50 uppercase tracking-[0.15em]">
+          <span className="overline text-primary/60">
             The Fridge
           </span>
         </div>
@@ -98,28 +92,27 @@ export function PinnedNote({ locketId, partnerName = 'your partner' }: PinnedNot
             className="block w-full text-left group/inner"
           >
             {hasImage && firstImage ? (
-              <div className="relative aspect-[4/3] rounded overflow-hidden mb-2 shadow-sm transform group-hover/inner:scale-[1.02] transition-transform">
+              <div className="relative aspect-[4/3] rounded-lg overflow-hidden mb-2 shadow-sm transform group-hover/inner:scale-[1.02] transition-transform">
                 <Image
                   src={firstImage.storage_url}
                   alt={pinnedMemory.title || 'Pinned memory'}
                   fill
                   className="object-cover"
                 />
-                {/* Polaroid-style bottom strip */}
-                <div className="absolute bottom-0 left-0 right-0 h-8 bg-white/90 backdrop-blur-sm flex items-center justify-center">
-                  <p className="font-heading text-xs text-truffle truncate px-2">
+                <div className="absolute bottom-0 left-0 right-0 h-8 bg-elevated/90 backdrop-blur-sm flex items-center justify-center">
+                  <p className="font-display text-caption text-foreground truncate px-2">
                     {pinnedMemory.title || pinnedMemory.description?.slice(0, 30) || 'A special moment'}
                   </p>
                 </div>
               </div>
             ) : (
-              <div className="bg-[#FDF6F7] rounded-lg p-4 min-h-[80px] flex items-center justify-center group-hover/inner:bg-rose-50 transition-colors">
-                <p className="font-serif text-center text-truffle/70 italic leading-relaxed text-sm">
+              <div className="bg-surface-rose rounded-lg p-4 min-h-[80px] flex items-center justify-center group-hover/inner:bg-surface-rose/80 transition-colors">
+                <p className="font-serif text-center text-foreground/70 italic leading-relaxed text-body-sm">
                   &ldquo;{pinnedMemory.description || pinnedMemory.title || 'A sweet note'}&rdquo;
                 </p>
               </div>
             )}
-            <p className="text-[10px] text-truffle/30 text-center mt-1.5">
+            <p className="text-overline text-faint text-center mt-1.5">
               Tap to view
             </p>
           </button>
@@ -128,18 +121,17 @@ export function PinnedNote({ locketId, partnerName = 'your partner' }: PinnedNot
             onClick={() => setShowReplaceModal(true)}
             className="block w-full text-center py-5 group/empty"
           >
-            <MessageCircle className="w-7 h-7 mx-auto text-primary/15 mb-2 group-hover/empty:text-primary/30 transition-colors" />
-            <p className="text-xs text-truffle/40 mb-0.5">
+            <MessageCircle className="w-7 h-7 mx-auto text-faint/40 mb-2 group-hover/empty:text-primary/40 transition-colors" />
+            <p className="text-caption text-muted mb-0.5">
               Nothing pinned yet
             </p>
-            <p className="text-[10px] text-truffle/25">
+            <p className="text-overline text-faint">
               Tap to pin something for {partnerName}
             </p>
           </button>
         )}
-      </motion.div>
+      </div>
 
-      {/* Detail Modal */}
       {showDetail && pinnedMemory && (
         <FridgeDetailModal
           isOpen={showDetail}
@@ -152,7 +144,6 @@ export function PinnedNote({ locketId, partnerName = 'your partner' }: PinnedNot
         />
       )}
 
-      {/* Replace Modal */}
       {showReplaceModal && (
         <ReplacePinModal
           isOpen={showReplaceModal}

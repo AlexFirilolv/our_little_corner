@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
 import { Calendar, Sparkles, Loader2, Clock } from 'lucide-react';
 import type { MemoryGroup, SpotlightMemory } from '@/lib/types';
 
@@ -41,7 +40,7 @@ export function SpotlightCard({ locketId, onViewMemory }: SpotlightCardProps) {
 
   if (loading) {
     return (
-      <div className="bg-white/[0.07] backdrop-blur-xl rounded-2xl p-5 border border-white/[0.08] min-h-[200px] flex items-center justify-center">
+      <div className="card-base p-5 min-h-[200px] flex items-center justify-center">
         <Loader2 className="w-5 h-5 animate-spin text-primary/50" />
       </div>
     );
@@ -49,17 +48,17 @@ export function SpotlightCard({ locketId, onViewMemory }: SpotlightCardProps) {
 
   if (!spotlight || spotlight.type === 'none' || !spotlight.memory) {
     return (
-      <div className="bg-white/[0.07] backdrop-blur-xl rounded-2xl p-5 border border-white/[0.08]">
+      <div className="card-base p-5">
         <div className="flex items-center gap-2 mb-3">
           <Calendar className="w-4 h-4 text-primary" />
-          <h3 className="font-heading text-lg font-bold text-white">On This Day</h3>
+          <h3 className="font-display text-subheading text-foreground">On This Day</h3>
         </div>
-        <div className="bg-white/[0.04] rounded-xl p-4 text-center py-8 border border-white/[0.05]">
-          <Clock className="w-8 h-8 mx-auto text-white/15 mb-3" />
-          <p className="text-white/40 text-sm">
+        <div className="bg-background rounded-xl p-4 text-center py-8 border border-border">
+          <Clock className="w-8 h-8 mx-auto text-faint mb-3" />
+          <p className="text-muted text-body-sm">
             Your memories will appear here — both &ldquo;On This Day&rdquo; flashbacks and random highlights.
           </p>
-          <p className="text-xs text-white/25 mt-1">
+          <p className="text-caption text-faint mt-1">
             Keep adding memories to unlock spotlights!
           </p>
         </div>
@@ -73,36 +72,27 @@ export function SpotlightCard({ locketId, onViewMemory }: SpotlightCardProps) {
   const isOnThisDay = spotlight.type === 'on_this_day';
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ delay: 0.2, type: 'spring', stiffness: 100 }}
-      className="bg-white/[0.07] backdrop-blur-xl rounded-2xl border border-white/[0.08] overflow-hidden group"
-    >
+    <div className="card-feature overflow-hidden group">
       {/* Header */}
       <div className="p-4 pb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           {isOnThisDay ? (
             <>
               <Calendar className="w-4 h-4 text-primary" />
-              <h3 className="font-heading text-lg font-bold text-white">On This Day</h3>
+              <h3 className="font-display text-subheading text-foreground">On This Day</h3>
             </>
           ) : (
             <>
-              <Sparkles className="w-4 h-4 text-gold" />
-              <h3 className="font-heading text-lg font-bold text-white">Memory Spotlight</h3>
+              <Sparkles className="w-4 h-4 text-accent" />
+              <h3 className="font-display text-subheading text-foreground">Memory Spotlight</h3>
             </>
           )}
         </div>
 
         {isOnThisDay && spotlight.years_ago && (
-          <motion.span
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="inline-flex items-center gap-1 bg-gold/20 text-gold px-2.5 py-1 rounded-full text-xs font-bold"
-          >
+          <span className="inline-flex items-center gap-1 bg-accent/15 text-accent px-2.5 py-1 rounded-full text-caption font-semibold">
             {spotlight.years_ago} {spotlight.years_ago === 1 ? 'year' : 'years'} ago
-          </motion.span>
+          </span>
         )}
       </div>
 
@@ -119,14 +109,14 @@ export function SpotlightCard({ locketId, onViewMemory }: SpotlightCardProps) {
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-500"
             />
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-4 pt-12">
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-foreground/70 via-foreground/30 to-transparent p-4 pt-12">
               {memory.title && (
-                <h4 className="font-heading text-white font-bold text-lg leading-tight mb-1">
+                <h4 className="font-display text-lg font-semibold text-white leading-tight mb-1">
                   {memory.title}
                 </h4>
               )}
               {memory.description && (
-                <p className="text-white/80 text-sm line-clamp-2">
+                <p className="text-white/80 text-body-sm line-clamp-2">
                   {memory.description}
                 </p>
               )}
@@ -134,8 +124,8 @@ export function SpotlightCard({ locketId, onViewMemory }: SpotlightCardProps) {
           </div>
         ) : (
           <div className="p-4 pt-0">
-            <div className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] rounded-xl p-5 border border-white/[0.05]">
-              <p className="font-serif text-white/70 italic text-center leading-relaxed">
+            <div className="bg-surface-rose rounded-xl p-5 border border-border">
+              <p className="font-serif text-foreground/70 italic text-center leading-relaxed">
                 &ldquo;{memory.description || memory.title || 'A cherished moment'}&rdquo;
               </p>
             </div>
@@ -143,19 +133,19 @@ export function SpotlightCard({ locketId, onViewMemory }: SpotlightCardProps) {
         )}
 
         {/* Footer */}
-        <div className="px-4 py-3 border-t border-white/[0.06] flex items-center justify-between">
-          <span className="text-xs text-white/40">
+        <div className="px-4 py-3 border-t border-border flex items-center justify-between">
+          <span className="text-caption text-faint">
             {new Date(memory.date_taken || memory.created_at).toLocaleDateString(undefined, {
               month: 'long',
               day: 'numeric',
               year: 'numeric'
             })}
           </span>
-          <span className="text-xs text-primary font-medium group-hover:underline">
+          <span className="text-caption text-primary font-medium group-hover:underline">
             View memory
           </span>
         </div>
       </button>
-    </motion.div>
+    </div>
   );
 }

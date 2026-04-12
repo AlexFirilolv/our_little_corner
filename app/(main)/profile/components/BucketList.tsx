@@ -56,7 +56,6 @@ export function BucketList() {
 
         const newCompleted = !item.completed;
 
-        // Optimistic update
         setItems(prevItems => prevItems.map(i =>
             i.id === id ? { ...i, completed: newCompleted } : i
         ));
@@ -80,7 +79,6 @@ export function BucketList() {
                 throw new Error('Failed to update status');
             }
         } catch (error) {
-            // Revert optimistic update on error
             setItems(prevItems => prevItems.map(i =>
                 i.id === id ? { ...i, completed: item.completed } : i
             ));
@@ -94,7 +92,7 @@ export function BucketList() {
         if (!newItemText.trim() || !currentLocket) return;
 
         const text = newItemText;
-        setNewItemText(''); // Clear input immediately for better UX
+        setNewItemText('');
 
         try {
             const { getCurrentUserToken } = await import('@/lib/firebase/auth');
@@ -118,7 +116,7 @@ export function BucketList() {
                 const newItem: BucketItem = {
                     id: data.item.id,
                     text: data.item.title,
-                    completed: false, // Default from API is 'active'
+                    completed: false,
                     category: data.item.category
                 };
                 setItems(prev => [...prev, newItem]);
@@ -127,7 +125,7 @@ export function BucketList() {
             }
         } catch (error) {
             console.error("Failed to add item", error);
-            setNewItemText(text); // Restore text on failure
+            setNewItemText(text);
             alert('Failed to add item. Please try again.');
         }
     };
@@ -136,7 +134,6 @@ export function BucketList() {
         const itemToDelete = items.find(i => i.id === id);
         if (!itemToDelete) return;
 
-        // Optimistic delete
         setItems(prevItems => prevItems.filter(item => item.id !== id));
 
         try {
@@ -154,7 +151,6 @@ export function BucketList() {
                 throw new Error('Failed to delete item');
             }
         } catch (error) {
-            // Revert optimistic delete on error
             setItems(prev => [...prev, itemToDelete]);
             console.error('Failed to delete item:', error);
             alert('Failed to delete item. Please try again.');
@@ -163,17 +159,17 @@ export function BucketList() {
 
     if (loading) {
         return (
-            <div className="bg-white rounded-2xl shadow-sm border border-rose-100 p-6 flex justify-center">
+            <div className="card-base p-6 flex justify-center">
                 <Loader2 className="animate-spin text-primary/50" />
             </div>
         )
     }
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-rose-100 p-6">
+        <div className="card-base p-6">
             <div className="flex justify-between items-center mb-6">
-                <h2 className="font-heading text-2xl text-primary">Our Bucket List</h2>
-                <span className="text-sm text-muted-foreground bg-rose-50 px-3 py-1 rounded-full">
+                <h2 className="font-display text-heading text-foreground">Our Bucket List</h2>
+                <span className="text-caption text-muted bg-foreground/5 px-3 py-1.5 rounded-full font-medium">
                     {items.filter(i => i.completed).length} / {items.length} Done
                 </span>
             </div>
@@ -185,26 +181,26 @@ export function BucketList() {
                         value={newItemText}
                         onChange={(e) => setNewItemText(e.target.value)}
                         placeholder="Add a new dream..."
-                        className="w-full pl-4 pr-12 py-3 bg-rose-50/50 border border-rose-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-body text-truffle placeholder:text-muted-foreground/50"
+                        className="w-full bg-elevated border border-border rounded-md px-4 py-3 pr-12 text-body font-body text-foreground placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                     />
                     <button
                         type="submit"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-primary text-primary-foreground rounded-lg hover:brightness-110 transition-all"
                     >
                         <Plus size={18} />
                     </button>
                 </div>
             </form>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
                 {items.map((item) => (
                     <div
                         key={item.id}
                         className={cn(
-                            "group flex items-center p-3 rounded-xl border transition-all duration-200",
+                            "group flex items-center p-3 rounded-lg border transition-all duration-200",
                             item.completed
-                                ? "bg-rose-50/30 border-transparent opacity-70"
-                                : "bg-white border-rose-50 hover:border-rose-200 hover:shadow-sm"
+                                ? "bg-foreground/[0.02] border-transparent opacity-50"
+                                : "bg-elevated border-border hover:border-border-emphasis hover:shadow-sm"
                         )}
                     >
                         <button
@@ -212,8 +208,8 @@ export function BucketList() {
                             className={cn(
                                 "flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 transition-colors",
                                 item.completed
-                                    ? "bg-primary border-primary text-white"
-                                    : "border-muted-foreground/30 text-transparent hover:border-primary"
+                                    ? "bg-secondary border-secondary text-secondary-foreground"
+                                    : "border-border text-transparent hover:border-secondary/50"
                             )}
                         >
                             <Check size={14} strokeWidth={3} />
@@ -221,8 +217,8 @@ export function BucketList() {
 
                         <span
                             className={cn(
-                                "flex-1 font-body text-sm md:text-base transition-all",
-                                item.completed ? "line-through text-muted-foreground" : "text-truffle"
+                                "flex-1 text-body transition-all",
+                                item.completed ? "line-through text-faint" : "text-foreground/80"
                             )}
                         >
                             {item.text}
@@ -230,7 +226,7 @@ export function BucketList() {
 
                         <button
                             onClick={() => deleteItem(item.id)}
-                            className="opacity-0 group-hover:opacity-100 p-2 text-muted-foreground hover:text-red-400 transition-all transform hover:scale-110"
+                            className="opacity-0 group-hover:opacity-100 p-2 text-faint hover:text-destructive transition-all"
                         >
                             <Trash2 size={16} />
                         </button>
@@ -238,8 +234,8 @@ export function BucketList() {
                 ))}
 
                 {items.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                        <p>Your list is empty. Start dreaming together! ✨</p>
+                    <div className="text-center py-8 text-muted">
+                        <p className="font-serif italic">Your list is empty. Start dreaming together!</p>
                     </div>
                 )}
             </div>

@@ -94,14 +94,14 @@ export function HeroSection({
           </motion.div>
         ) : (
           // Fallback gradient when no images
-          <div className="absolute inset-0 bg-gradient-to-br from-[#221016] via-[#331922] to-[#221016]" />
+          <div className="absolute inset-0 bg-gradient-to-br from-background via-elevated to-background" />
         )}
       </AnimatePresence>
 
       {/* Dark Gradient Overlays */}
-      <div className="absolute inset-0 bg-[#221016]/40 mix-blend-multiply" />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#221016] via-[#221016]/30 to-[#221016]/20 opacity-90" />
-      <div className="absolute inset-0 bg-gradient-to-b from-[#221016]/60 via-transparent to-transparent opacity-70" />
+      <div className="absolute inset-0 bg-foreground/40 mix-blend-multiply" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-background/20 opacity-90" />
+      <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-transparent to-transparent opacity-70" />
 
       {/* Top Controls */}
       <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-5 pt-[env(safe-area-inset-top,12px)] mt-3">
@@ -151,19 +151,19 @@ export function HeroSection({
           {/* Massive Days Counter */}
           {daysTogether !== null && daysTogether !== undefined && daysTogether > 0 ? (
             <>
-              <h1 className="font-heading text-[5.5rem] md:text-[8rem] leading-none font-black text-white tracking-tight drop-shadow-2xl">
+              <h1 className="font-display text-[5.5rem] md:text-[8rem] leading-none font-black text-white tracking-tight drop-shadow-2xl">
                 {daysTogether.toLocaleString()}
               </h1>
-              <p className="text-white/70 text-xl md:text-2xl font-heading font-light mt-2 tracking-wide">
+              <p className="text-white/70 text-xl md:text-2xl font-display font-light mt-2 tracking-wide">
                 Days Together
               </p>
             </>
           ) : (
             <>
-              <h1 className="font-heading text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-2xl leading-tight">
+              <h1 className="font-display text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-2xl leading-tight">
                 {locketName}
               </h1>
-              <p className="text-white/60 text-lg font-heading font-light mt-2">
+              <p className="text-white/60 text-lg font-display font-light mt-2">
                 Your shared world
               </p>
             </>

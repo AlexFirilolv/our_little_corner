@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { MilestoneList } from './components/MilestoneList';
-import { Globe, Loader2, MapPin, Compass, Heart, Sparkles } from 'lucide-react';
+import { Loader2, Compass, Sparkles } from 'lucide-react';
 import JourneyMap from './components/JourneyMap';
 import { useLocket } from '@/contexts/LocketContext';
 import Link from 'next/link';
@@ -68,16 +68,16 @@ export default function JourneyPage() {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
         <div className="max-w-md mx-auto">
-          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-rose-100 flex items-center justify-center">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-primary/10 flex items-center justify-center">
             <Compass className="w-10 h-10 text-primary" />
           </div>
-          <h1 className="font-heading text-2xl text-primary font-bold mb-2">No Locket Selected</h1>
-          <p className="text-muted-foreground mb-6">
+          <h1 className="font-display text-heading text-foreground mb-2">No Locket Selected</h1>
+          <p className="text-muted mb-6">
             Create or join a locket to start tracking your journey together.
           </p>
           <Link
             href="/"
-            className="inline-block px-6 py-3 bg-primary text-white rounded-full font-medium hover:bg-primary/90 transition-colors"
+            className="inline-block px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:brightness-110 transition-all"
           >
             Get Started
           </Link>
@@ -88,52 +88,59 @@ export default function JourneyPage() {
 
   const hasData = stats.memories > 0;
 
+  const statItems = [
+    { value: stats.memories, label: 'Memories', color: 'text-primary' },
+    { value: stats.places, label: 'Places', color: 'text-secondary' },
+    { value: stats.milestones, label: 'Milestones', color: 'text-accent' },
+    { value: '\u221E', label: 'Adventures', color: 'text-muted' },
+  ];
+
   return (
     <div className="container mx-auto px-4 py-8 pb-24 md:pb-8">
-      <header className="mb-8 text-center md:text-left">
-        <h1 className="font-heading text-3xl md:text-4xl text-primary font-bold">Our Journey</h1>
-        <p className="text-muted-foreground mt-2">Where we've been and where we're going.</p>
+      {/* Header */}
+      <header className="mb-8 animate-fade-in">
+        <p className="overline text-faint mb-2">Where you&apos;ve been</p>
+        <h1 className="font-display text-display text-foreground tracking-tight">Our Journey</h1>
+        <p className="text-muted mt-2 font-serif italic">Where we&apos;ve been and where we&apos;re going.</p>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Map Section - Takes up 2 columns on large screens */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Map Section */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="bg-white p-2 rounded-3xl shadow-md border border-rose-100">
-            <JourneyMap />
+          <div className="card-base p-1.5 overflow-hidden animate-fade-in-up">
+            <div className="rounded-lg overflow-hidden">
+              <JourneyMap />
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {/* Stats Cards */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-rose-50 text-center">
-              <div className="text-2xl font-bold text-accent">{stats.memories}</div>
-              <div className="text-xs text-muted-foreground uppercase tracking-wider">Memories</div>
-            </div>
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-rose-50 text-center">
-              <div className="text-2xl font-bold text-accent">{stats.places}</div>
-              <div className="text-xs text-muted-foreground uppercase tracking-wider">Places</div>
-            </div>
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-rose-50 text-center">
-              <div className="text-2xl font-bold text-accent">{stats.milestones}</div>
-              <div className="text-xs text-muted-foreground uppercase tracking-wider">Milestones</div>
-            </div>
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-rose-50 text-center">
-              <div className="text-2xl font-bold text-accent">∞</div>
-              <div className="text-xs text-muted-foreground uppercase tracking-wider">Adventures</div>
-            </div>
+          {/* Stats Row */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-fade-in-up">
+            {statItems.map((stat) => (
+              <div
+                key={stat.label}
+                className="card-base p-4 text-center"
+              >
+                <div className={`text-heading font-display font-bold ${stat.color}`}>{stat.value}</div>
+                <div className="overline text-faint mt-1">{stat.label}</div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Sidebar / Milestones */}
-        <div className="lg:col-span-1">
+        {/* Sidebar */}
+        <div className="lg:col-span-1 space-y-6 animate-fade-in-up">
           <MilestoneList />
 
-          {/* "On This Day" Widget - Only show if we have memories */}
+          {/* "On This Day" Widget */}
           {hasData && (
-            <div className="mt-8 bg-[#FDF6F7] rounded-2xl p-6 border border-rose-100 shadow-sm">
-              <h3 className="font-heading text-lg text-primary font-bold mb-4">On This Day</h3>
-              <div className="bg-white/50 p-4 rounded-xl border border-rose-50/50 text-center">
-                <Sparkles className="w-6 h-6 text-rose-300 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">
+            <div className="card-base bg-surface-amber p-5">
+              <h3 className="font-display text-subheading text-foreground mb-4 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-accent" />
+                On This Day
+              </h3>
+              <div className="bg-background p-4 rounded-lg border border-border text-center">
+                <Sparkles className="w-6 h-6 text-primary/30 mx-auto mb-2" />
+                <p className="text-body-sm text-muted font-serif italic">
                   Check back when you have more memories to see flashbacks!
                 </p>
               </div>

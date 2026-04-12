@@ -6,11 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useLocket } from '@/contexts/LocketContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { Heart, Mail, Users, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
+import { Heart, Users, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import { auth } from '@/lib/firebase/config'
 
 interface LocketInvite {
@@ -44,25 +40,15 @@ export default function InvitePage({ params }: { params: { code: string } }) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  // Auth form state
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [displayName, setDisplayName] = useState('')
-  const [isSignUp, setIsSignUp] = useState(false)
-
   const inviteEmail = searchParams.get('email')
 
   useEffect(() => {
-    if (inviteEmail) {
-      setEmail(inviteEmail)
-    }
     loadInvite()
   }, [code, inviteEmail])
 
   const loadInvite = async () => {
     try {
       setLoading(true)
-      // We need to find the invite by locket invite_code and email
       const response = await fetch(`/api/locket-invites?code=${code}&email=${inviteEmail || ''}`)
 
       if (response.ok) {
@@ -99,23 +85,13 @@ export default function InvitePage({ params }: { params: { code: string } }) {
 
       const { GoogleAuthProvider, signInWithPopup } = await import('firebase/auth')
       const provider = new GoogleAuthProvider()
-
-      // Request additional scopes if needed
       provider.addScope('email')
       provider.addScope('profile')
+      provider.setCustomParameters({ prompt: 'select_account' })
 
-      provider.setCustomParameters({
-        prompt: 'select_account'
-      })
-
-      const userCredential = await signInWithPopup(auth, provider)
-
-      // Wait for auth context to update
+      await signInWithPopup(auth, provider)
       await new Promise(resolve => setTimeout(resolve, 1000))
-
-      // Accept the invitation
       await acceptInvitation()
-
     } catch (error: any) {
       console.error('Authentication error:', error)
       if (error.code === 'auth/popup-closed-by-user') {
@@ -136,46 +112,30 @@ export default function InvitePage({ params }: { params: { code: string } }) {
 
       let response;
       if (invite.id === 'generic-invite-code') {
-        // Handle generic invite link by calling the join endpoint
         response = await fetch('/api/lockets/join', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code })
         })
       } else {
-        // Handle specific invite by ID
         response = await fetch(`/api/locket-invites/${invite.id}/accept`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          }
+          headers: { 'Content-Type': 'application/json' }
         })
       }
 
       if (response.ok) {
         setSuccess('Invitation accepted! Redirecting to your locket...')
-
-        // Refresh lockets to include the newly joined locket in the background
         refreshLockets().catch(console.error)
         if (invite.locket) {
           switchLocket(invite.locket.id).catch(console.error)
         }
-
-        // Redirect to home (user now has a locket) using a hard navigation to ensure clean state
-        setTimeout(() => {
-          window.location.href = '/'
-        }, 1500)
+        setTimeout(() => { window.location.href = '/' }, 1500)
       } else {
         const errorData = await response.json()
-
-        // If the user is already a member, treat it as a success and redirect them
         if (response.status === 409 || errorData.error?.includes('already a member')) {
           setSuccess('You are already a member! Redirecting to your locket...')
-          setTimeout(() => {
-            window.location.href = '/'
-          }, 1500)
+          setTimeout(() => { window.location.href = '/' }, 1500)
         } else {
           setError(errorData.error || 'Failed to accept invitation')
         }
@@ -195,7 +155,7 @@ export default function InvitePage({ params }: { params: { code: string } }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardContent className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -207,11 +167,11 @@ export default function InvitePage({ params }: { params: { code: string } }) {
 
   if (!invite) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <CardTitle>Invitation Not Found</CardTitle>
+            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+            <CardTitle className="font-display text-heading">Invitation Not Found</CardTitle>
             <CardDescription>
               {error || 'This invitation may have expired or been revoked.'}
             </CardDescription>
@@ -228,11 +188,11 @@ export default function InvitePage({ params }: { params: { code: string } }) {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-            <CardTitle>Welcome!</CardTitle>
+            <CheckCircle className="h-12 w-12 text-secondary mx-auto mb-4" />
+            <CardTitle className="font-display text-heading">Welcome!</CardTitle>
             <CardDescription>{success}</CardDescription>
           </CardHeader>
         </Card>
@@ -241,21 +201,21 @@ export default function InvitePage({ params }: { params: { code: string } }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <Heart className="h-12 w-12 text-primary mx-auto mb-4" />
-          <CardTitle className="text-2xl font-heading text-primary">
-            You're Invited!
+          <CardTitle className="font-display text-display text-primary">
+            You&apos;re Invited!
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-body-sm text-muted">
             {invite.invited_by ? (
               <>
-                You've been invited by <strong>{invite.invited_by.name}</strong> to join <strong>{invite.locket?.name || 'Our Locket'}</strong>!
+                You&apos;ve been invited by <strong className="text-foreground">{invite.invited_by.name}</strong> to join <strong className="text-foreground">{invite.locket?.name || 'Our Locket'}</strong>!
               </>
             ) : (
               <>
-                You've been invited to join <strong>{invite.locket?.name || 'Our Locket'}</strong>!
+                You&apos;ve been invited to join <strong className="text-foreground">{invite.locket?.name || 'Our Locket'}</strong>!
               </>
             )}
           </CardDescription>
@@ -263,15 +223,14 @@ export default function InvitePage({ params }: { params: { code: string } }) {
 
         <CardContent className="space-y-6">
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 text-destructive text-sm">
               {error}
             </div>
           )}
 
           {user ? (
-            // User is already authenticated
             <div className="text-center space-y-4">
-              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center justify-center gap-2 text-body-sm text-muted">
                 <Users className="h-4 w-4" />
                 Signed in as {user.email}
               </div>
@@ -292,7 +251,7 @@ export default function InvitePage({ params }: { params: { code: string } }) {
             </div>
           ) : (
             <div className="text-center space-y-4">
-              <p className="text-sm text-muted-foreground mb-4">
+              <p className="text-body-sm text-muted mb-4">
                 Please sign in with Google to continue
               </p>
 

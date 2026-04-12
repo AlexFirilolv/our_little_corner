@@ -158,7 +158,7 @@ export function FridgeDetailModal({ isOpen, onClose, memory, onReplace }: Fridge
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-rose-100 dark:border-white/10">
-          <h2 className="font-heading text-lg font-bold">The Fridge</h2>
+          <h2 className="font-display text-lg font-bold">The Fridge</h2>
           <div className="flex items-center gap-2">
             <button
               onClick={onReplace}
@@ -549,7 +549,7 @@ export function ReplacePinModal({ isOpen, onClose, locketId, onPinned }: Replace
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-rose-100 dark:border-white/10">
-          <h2 className="font-heading text-lg font-bold">Replace Pin</h2>
+          <h2 className="font-display text-lg font-bold">Replace Pin</h2>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
             <X className="w-5 h-5" />
           </button>

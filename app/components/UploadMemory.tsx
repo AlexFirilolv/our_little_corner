@@ -447,10 +447,10 @@ export default function UploadMemory({ isMilestone = false }: { isMilestone?: bo
   return (
     <div className="max-w-2xl mx-auto p-4 sm:p-6 pb-24">
       <div className="flex items-center gap-3 mb-8">
-        <button onClick={() => router.back()} className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors">
-          <X className="w-6 h-6 text-white" />
+        <button onClick={() => router.back()} className="p-2 -ml-2 rounded-full hover:bg-foreground/5 transition-colors">
+          <X className="w-6 h-6 text-foreground" />
         </button>
-        <h1 className="font-display italic text-3xl text-white">
+        <h1 className="font-display italic text-display text-foreground">
           {isMilestone ? 'Add a Milestone' : 'Add a Memory'}
         </h1>
       </div>
@@ -462,7 +462,7 @@ export default function UploadMemory({ isMilestone = false }: { isMilestone?: bo
           <div
             className={`
               aspect-[4/3] rounded-2xl border-2 border-dashed transition-all relative overflow-hidden flex flex-col items-center justify-center cursor-pointer
-              ${isDragging ? 'border-primary bg-primary/10' : 'border-[#673244] hover:border-primary/50 hover:bg-white/5'}
+              ${isDragging ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50 hover:bg-foreground/5'}
             `}
             onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
             onDragLeave={() => setIsDragging(false)}
@@ -473,8 +473,8 @@ export default function UploadMemory({ isMilestone = false }: { isMilestone?: bo
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary mx-auto mb-4">
                 <ImageIcon className="w-8 h-8" />
               </div>
-              <p className="font-display text-xl text-white mb-2">Tap to upload</p>
-              <p className="text-white/50 text-sm">
+              <p className="font-display text-heading text-foreground mb-2">Tap to upload</p>
+              <p className="text-faint text-sm">
                 {isMilestone ? 'Add multiple photos to capture this moment' : 'or drag and drop here'}
               </p>
             </div>
@@ -515,7 +515,7 @@ export default function UploadMemory({ isMilestone = false }: { isMilestone?: bo
               {/* Add More Button */}
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="aspect-square rounded-xl border-2 border-dashed border-[#673244] hover:border-primary/50 hover:bg-white/5 flex flex-col items-center justify-center transition-all"
+                className="aspect-square rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-foreground/5 flex flex-col items-center justify-center transition-all"
               >
                 <Plus className="w-8 h-8 text-primary/50 mb-1" />
                 <span className="text-xs text-muted-foreground">Add more</span>
@@ -542,34 +542,34 @@ export default function UploadMemory({ isMilestone = false }: { isMilestone?: bo
 
           {/* Caption */}
           <div>
-            <label className="block text-sm font-medium text-white/60 mb-2 font-display uppercase tracking-wider">
+            <label className="block text-sm font-medium text-muted mb-2 font-display uppercase tracking-wider">
               {isMilestone ? 'What milestone is this?' : 'Caption'}
             </label>
             <textarea
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
               placeholder={isMilestone ? "First trip together, Moving in, Anniversary..." : "What's the story behind this moment?"}
-              className="w-full bg-[#331922] border border-[#673244] rounded-xl p-4 text-lg font-sans text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all resize-none h-32"
+              className="w-full bg-elevated border border-border rounded-xl p-4 text-body font-body text-foreground placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all resize-none h-32"
             />
           </div>
 
           {/* Date and Location */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-white/60 mb-2 font-display uppercase tracking-wider">Date {dateAutoFilled && <span className="text-xs text-primary normal-case">(from photo)</span>}</label>
+              <label className="block text-sm font-medium text-muted mb-2 font-display uppercase tracking-wider">Date {dateAutoFilled && <span className="text-xs text-primary normal-case">(from photo)</span>}</label>
               <div className="relative">
                 <input
                   type="date"
                   value={date}
                   onChange={(e) => { setDate(e.target.value); setDateAutoFilled(false); }}
-                  className="w-full bg-[#331922] border border-[#673244] rounded-xl p-4 pl-12 text-lg font-sans text-white focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+                  className="w-full bg-elevated border border-border rounded-xl p-4 pl-12 text-body font-body text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
                 />
                 <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/50 w-5 h-5 pointer-events-none" />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-white/60 mb-2 font-display uppercase tracking-wider">
+              <label className="block text-sm font-medium text-muted mb-2 font-display uppercase tracking-wider">
                 Location {locationAutoFilled && <span className="text-xs text-primary normal-case">(from photo)</span>}
               </label>
               <div className="relative">
@@ -583,7 +583,7 @@ export default function UploadMemory({ isMilestone = false }: { isMilestone?: bo
                   placeholder={isGeocodingLocation ? "Finding location..." : "Where did this happen?"}
                   disabled={isGeocodingLocation}
                   autoComplete="off"
-                  className="w-full bg-[#331922] border border-[#673244] rounded-xl p-4 pl-12 text-lg font-sans text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all disabled:opacity-50"
+                  className="w-full bg-elevated border border-border rounded-xl p-4 pl-12 text-body font-body text-foreground placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all disabled:opacity-50"
                 />
                 {isGeocodingLocation || isLoadingSuggestions ? (
                   <Loader2 className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/50 w-5 h-5 pointer-events-none animate-spin" />
@@ -595,7 +595,7 @@ export default function UploadMemory({ isMilestone = false }: { isMilestone?: bo
                 {showSuggestions && suggestions.length > 0 && (
                   <div
                     ref={suggestionsRef}
-                    className="absolute top-full left-0 right-0 mt-1 bg-[#331922] border border-[#673244] rounded-xl shadow-lg overflow-hidden z-50"
+                    className="absolute top-full left-0 right-0 mt-1 bg-elevated border border-border rounded-xl shadow-lg overflow-hidden z-50"
                   >
                     {suggestions.map((suggestion, index) => (
                       <button
@@ -605,16 +605,16 @@ export default function UploadMemory({ isMilestone = false }: { isMilestone?: bo
                         className={`w-full px-4 py-3 text-left flex items-start gap-3 transition-colors ${
                           index === selectedIndex
                             ? 'bg-primary/20'
-                            : 'hover:bg-white/5'
+                            : 'hover:bg-foreground/5'
                         }`}
                       >
                         <MapPin className="w-4 h-4 text-primary/50 mt-1 flex-shrink-0" />
                         <div className="min-w-0">
-                          <div className="font-medium text-white truncate">
+                          <div className="font-medium text-foreground truncate">
                             {suggestion.name}
                           </div>
                           {suggestion.description && (
-                            <div className="text-sm text-white/60 truncate">
+                            <div className="text-sm text-muted truncate">
                               {suggestion.description}
                             </div>
                           )}
@@ -633,7 +633,7 @@ export default function UploadMemory({ isMilestone = false }: { isMilestone?: bo
         <Button
           onClick={handleUpload}
           disabled={files.length === 0 || isLoading}
-          className="h-16 text-lg font-medium rounded-full bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all transform hover:-translate-y-1 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="h-16 text-lg font-medium rounded-lg bg-primary hover:brightness-110 text-primary-foreground shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? (
             <>

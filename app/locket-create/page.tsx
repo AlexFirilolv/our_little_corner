@@ -42,10 +42,10 @@ export default function LocketCreatePage() {
   // Show loading while auth/locket state is being determined
   if (authLoading || locketLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#221016]">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-white/60">Loading...</p>
+          <p className="text-muted">Loading...</p>
         </div>
       </div>
     )
@@ -59,10 +59,10 @@ export default function LocketCreatePage() {
   // User already had a locket when they arrived - show loading while redirect happens
   if (initialLocketCount.current !== null && initialLocketCount.current > 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#221016]">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-white/60">Redirecting to home...</p>
+          <p className="text-muted">Redirecting to home...</p>
         </div>
       </div>
     )

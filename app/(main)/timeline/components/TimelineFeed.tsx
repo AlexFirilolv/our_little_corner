@@ -7,7 +7,7 @@ import { LoveNoteCard } from './LoveNoteCard';
 import { EditMemoryModal } from './EditMemoryModal';
 import { CommentsPanel } from './CommentsPanel';
 import { MemoryDetailModal } from './MemoryDetailModal';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ImageIcon, User } from 'lucide-react';
 import { useLocket } from '@/contexts/LocketContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { getProxiedImageUrl } from '@/lib/imageProxy';
@@ -40,6 +40,7 @@ type JournalItem = {
     id: string;
     type: 'journal';
     date: string;
+    sortDate: Date;
     location?: string;
     imageUrl?: string;
     videoUrl?: string;
@@ -57,6 +58,7 @@ type NoteItem = {
     id: string;
     type: 'note';
     date: string;
+    sortDate: Date;
     authorInitial?: string;
     authorName?: string;
     authorAvatarUrl?: string;
@@ -81,13 +83,11 @@ export function TimelineFeed() {
     const [loading, setLoading] = React.useState(true);
     const [coverPhotoError, setCoverPhotoError] = React.useState(false);
 
-    // Modal state
     const [editingMemory, setEditingMemory] = useState<MemoryGroup | null>(null);
     const [commentingMemory, setCommentingMemory] = useState<{ id: string; title: string } | null>(null);
     const [viewingMemory, setViewingMemory] = useState<MemoryGroup | null>(null);
     const [viewingMemoryLike, setViewingMemoryLike] = useState({ isLiked: false, likeCount: 0 });
 
-    // Reset cover photo error when locket changes
     React.useEffect(() => {
         setCoverPhotoError(false);
     }, [currentLocket?.id]);
@@ -122,15 +122,19 @@ export function TimelineFeed() {
                     const creatorName = group.creator_name || '';
                     const creatorAvatar = group.creator_avatar_url || '';
                     const authorInitial = creatorName ? creatorName.charAt(0).toUpperCase() : '?';
+                    const rawDate = hasMedia
+                        ? new Date(group.media_items![0].date_taken || group.date_taken || group.created_at)
+                        : new Date(group.created_at);
 
                     if (hasMedia) {
                         const firstMedia = group.media_items![0];
                         return {
                             id: group.id,
                             type: 'journal',
-                            date: new Date(firstMedia.date_taken || group.date_taken || group.created_at).toLocaleDateString('en-US', {
+                            date: rawDate.toLocaleDateString('en-US', {
                                 month: 'short', day: 'numeric', year: 'numeric'
                             }),
+                            sortDate: rawDate,
                             location: firstMedia.place_name,
                             imageUrl: firstMedia.storage_url,
                             caption: group.title || group.description || '',
@@ -146,9 +150,10 @@ export function TimelineFeed() {
                         return {
                             id: group.id,
                             type: 'note',
-                            date: new Date(group.created_at).toLocaleDateString('en-US', {
+                            date: rawDate.toLocaleDateString('en-US', {
                                 month: 'short', day: 'numeric', year: 'numeric'
                             }),
+                            sortDate: rawDate,
                             authorInitial,
                             authorName: creatorName,
                             authorAvatarUrl: creatorAvatar,
@@ -174,22 +179,17 @@ export function TimelineFeed() {
         }
     }, [currentLocket, fetchData]);
 
-    const handleEditSaved = () => {
-        fetchData();
-    };
+    const handleEditSaved = () => { fetchData(); };
 
     const handleViewMemory = async (group: MemoryGroup) => {
         setViewingMemory(group);
-
         if (currentLocket) {
             try {
                 const { getCurrentUserToken } = await import('@/lib/firebase/auth');
                 const token = await getCurrentUserToken();
-
                 const res = await fetch(`/api/memory-groups/${group.id}/like?locketId=${currentLocket.id}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-
                 if (res.ok) {
                     const data = await res.json();
                     setViewingMemoryLike({ isLiked: data.liked, likeCount: data.likeCount });
@@ -202,20 +202,14 @@ export function TimelineFeed() {
 
     const handleViewMemoryLike = async () => {
         if (!viewingMemory || !currentLocket) return;
-
         try {
             const { getCurrentUserToken } = await import('@/lib/firebase/auth');
             const token = await getCurrentUserToken();
-
             const res = await fetch(`/api/memory-groups/${viewingMemory.id}/like`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ locket_id: currentLocket.id })
             });
-
             if (res.ok) {
                 const data = await res.json();
                 setViewingMemoryLike({ isLiked: data.liked, likeCount: data.likeCount });
@@ -225,28 +219,29 @@ export function TimelineFeed() {
         }
     };
 
+    // Group items by month
+    const groupedItems = items.reduce<Record<string, TimelineItem[]>>((acc, item) => {
+        const monthKey = item.sortDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        if (!acc[monthKey]) acc[monthKey] = [];
+        acc[monthKey].push(item);
+        return acc;
+    }, {});
+
     if (loading) {
         return (
-            <div className="flex justify-center items-center min-h-screen bg-[#221016]">
+            <div className="flex justify-center items-center min-h-screen">
                 <Loader2 className="w-8 h-8 text-primary animate-spin" />
             </div>
-        )
+        );
     }
 
     if (items.length === 0) {
         return (
-            <div className="min-h-screen bg-[#221016] relative overflow-hidden">
-                {/* Background gradient */}
-                <div className="absolute inset-0 bg-gradient-to-b from-[#221016] via-[#2a161e] to-[#221016]" />
-
-                {/* Subtle timeline line */}
-                <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-primary/20 to-transparent" />
-
+            <div className="min-h-screen relative overflow-hidden">
                 <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 text-center">
-                    {/* Header - Cover Photo or Avatars */}
                     <div className="relative mb-6">
                         {currentLocket?.cover_photo_url && !coverPhotoError ? (
-                            <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-[#221016] overflow-hidden ring-2 ring-primary/30 shadow-lg shadow-primary/20">
+                            <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-background overflow-hidden ring-2 ring-primary/20 shadow-md">
                                 <img
                                     src={getProxiedImageUrl(currentLocket.cover_photo_url)}
                                     alt="Locket cover"
@@ -259,213 +254,97 @@ export function TimelineFeed() {
                                 {members.length > 0 ? (
                                     members.slice(0, 2).map((member) => (
                                         member.avatar_url ? (
-                                            <div key={member.id} className="w-16 h-16 rounded-full border-4 border-[#221016] overflow-hidden relative ring-2 ring-primary/30">
-                                                <Image
-                                                    src={member.avatar_url}
-                                                    alt={member.display_name || 'Partner'}
-                                                    fill
-                                                    className="object-cover"
-                                                />
+                                            <div key={member.id} className="w-16 h-16 rounded-full border-4 border-background overflow-hidden relative ring-2 ring-primary/20">
+                                                <Image src={member.avatar_url} alt={member.display_name || 'Partner'} fill className="object-cover" />
                                             </div>
                                         ) : (
-                                            <div
-                                                key={member.id}
-                                                className="w-16 h-16 rounded-full border-4 border-[#221016] bg-[#331922] flex items-center justify-center text-primary font-serif text-xl ring-2 ring-primary/30"
-                                            >
+                                            <div key={member.id} className="w-16 h-16 rounded-full border-4 border-background bg-elevated flex items-center justify-center text-primary font-display text-xl ring-2 ring-primary/20">
                                                 {member.display_name?.charAt(0).toUpperCase() || '?'}
                                             </div>
                                         )
                                     ))
                                 ) : (
                                     <>
-                                        <div className="w-16 h-16 rounded-full border-4 border-[#221016] bg-[#331922] flex items-center justify-center text-primary/50 ring-2 ring-primary/30">
-                                            <span className="material-symbols-outlined">person</span>
+                                        <div className="w-16 h-16 rounded-full border-4 border-background bg-elevated flex items-center justify-center text-faint ring-2 ring-primary/20">
+                                            <User className="w-6 h-6" />
                                         </div>
-                                        <div className="w-16 h-16 rounded-full border-4 border-[#221016] bg-[#331922] flex items-center justify-center text-primary/50 ring-2 ring-primary/30">
-                                            <span className="material-symbols-outlined">person</span>
+                                        <div className="w-16 h-16 rounded-full border-4 border-background bg-elevated flex items-center justify-center text-faint ring-2 ring-primary/20">
+                                            <User className="w-6 h-6" />
                                         </div>
                                     </>
                                 )}
                             </div>
                         )}
-                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#331922] px-3 py-1 rounded-full border border-[#673244] flex items-center gap-1.5 whitespace-nowrap">
-                            <span className="material-symbols-outlined text-primary text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span>
-                            {currentLocket?.anniversary_date ? (
-                                <span className="text-[10px] font-bold text-white/60 uppercase tracking-wide">
-                                    {Math.max(0, Math.floor((Date.now() - new Date(currentLocket.anniversary_date).getTime()) / (1000 * 60 * 60 * 24))).toLocaleString()} days together
-                                </span>
-                            ) : (
-                                <span className="text-[10px] font-bold text-white/60 uppercase tracking-wide">Together Forever</span>
-                            )}
-                        </div>
                     </div>
 
-                    <h1 className="font-serif italic text-4xl text-white mb-3">Our Timeline</h1>
-                    <p className="text-white/40 text-sm mb-8">{currentLocket?.name || 'Your Story'}</p>
+                    <h1 className="font-display text-display text-foreground mb-3">Our Timeline</h1>
+                    <p className="text-muted text-body-sm mb-8">{currentLocket?.name || 'Your Story'}</p>
 
-                    <div className="glass-card p-8 rounded-2xl max-w-sm">
-                        <span className="material-symbols-outlined text-5xl text-white/20 mb-4 block">photo_library</span>
-                        <p className="text-white/60 mb-2">No memories yet</p>
-                        <p className="text-white/40 text-sm">Time to make some memories!</p>
+                    <div className="card-base p-8 rounded-2xl max-w-sm text-center">
+                        <ImageIcon className="w-12 h-12 text-faint mx-auto mb-4" />
+                        <p className="text-muted mb-2">No memories yet</p>
+                        <p className="text-faint text-body-sm">Time to make some memories!</p>
                     </div>
                 </div>
-
-                <style jsx>{`
-                    .glass-card {
-                        background: rgba(42, 22, 30, 0.75);
-                        backdrop-filter: blur(16px);
-                        border: 1px solid rgba(255, 255, 255, 0.08);
-                    }
-                `}</style>
             </div>
-        )
+        );
     }
 
     return (
-        <div className="min-h-screen bg-[#221016] relative overflow-x-hidden">
-            {/* Background gradient */}
-            <div className="absolute inset-0 bg-gradient-to-b from-[#221016] via-[#2a161e] to-[#221016] pointer-events-none" />
+        <div className="min-h-screen relative overflow-x-hidden pb-24 md:pb-8">
+            <div className="relative z-10 w-full max-w-2xl mx-auto px-4 py-8">
 
-            {/* Central timeline line */}
-            <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-px">
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/40 to-transparent" />
-                <div className="absolute inset-0 bg-primary/20 blur-sm" />
-            </div>
+                {/* Header */}
+                <div className="flex flex-col items-center justify-center mb-12 pt-4">
+                    <h1 className="font-display text-display text-foreground mb-2 text-center">Our Timeline</h1>
+                    <p className="text-muted text-body-sm">{currentLocket?.name || 'Our Story'}</p>
+                </div>
 
-            {/* Content */}
-            <div className="relative z-10 w-full max-w-6xl mx-auto px-4 py-8">
-
-                {/* Header Section */}
-                <div className="flex flex-col items-center justify-center mb-16 pt-8">
-                    <div className="relative mb-6">
-                        {/* Cover Photo or Partner Avatars */}
-                        {currentLocket?.cover_photo_url && !coverPhotoError ? (
-                            <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-[#221016] overflow-hidden ring-2 ring-primary/30 shadow-lg shadow-primary/20">
-                                <img
-                                    src={getProxiedImageUrl(currentLocket.cover_photo_url)}
-                                    alt="Locket cover"
-                                    className="w-full h-full object-cover"
-                                    onError={() => setCoverPhotoError(true)}
-                                />
+                {/* Timeline — single column with date grouping */}
+                <div className="space-y-8">
+                    {Object.entries(groupedItems).map(([monthLabel, monthItems]) => (
+                        <div key={monthLabel}>
+                            {/* Month header */}
+                            <div className="flex items-center gap-3 mb-6">
+                                <span className="overline text-faint">{monthLabel}</span>
+                                <div className="h-px flex-1 bg-border" />
                             </div>
-                        ) : (
-                            <div className="flex -space-x-4">
-                                {members.length > 0 ? (
-                                    members.slice(0, 2).map((member) => (
-                                        member.avatar_url ? (
-                                            <div key={member.id} className="w-16 h-16 rounded-full border-4 border-[#221016] overflow-hidden relative ring-2 ring-primary/30 shadow-lg shadow-primary/20">
-                                                <Image
-                                                    src={member.avatar_url}
-                                                    alt={member.display_name || 'Partner'}
-                                                    fill
-                                                    className="object-cover"
-                                                />
-                                            </div>
+
+                            {/* Items */}
+                            <div className="space-y-4">
+                                {monthItems.map((item) => (
+                                    <div key={item.id} className="flex justify-center animate-fade-in-up">
+                                        {item.type === 'journal' ? (
+                                            <JournalCard
+                                                id={item.id}
+                                                date={item.date}
+                                                location={item.location}
+                                                imageUrl={item.imageUrl}
+                                                caption={item.caption}
+                                                likes={item.likes}
+                                                isLiked={item.isLiked}
+                                                comments={item.comments}
+                                                authorAvatarUrl={item.authorAvatarUrl}
+                                                mediaItems={item.mediaItems}
+                                                onEdit={() => setEditingMemory(item.rawGroup)}
+                                                onComment={() => setCommentingMemory({
+                                                    id: item.id,
+                                                    title: item.caption || 'Memory'
+                                                })}
+                                                onImageClick={() => handleViewMemory(item.rawGroup)}
+                                            />
                                         ) : (
-                                            <div
-                                                key={member.id}
-                                                className="w-16 h-16 rounded-full border-4 border-[#221016] bg-[#331922] flex items-center justify-center text-primary font-serif text-xl ring-2 ring-primary/30 shadow-lg shadow-primary/20"
-                                            >
-                                                {member.display_name?.charAt(0).toUpperCase() || '?'}
-                                            </div>
-                                        )
-                                    ))
-                                ) : (
-                                    <>
-                                        <div className="w-16 h-16 rounded-full border-4 border-[#221016] bg-[#331922] flex items-center justify-center text-primary/50 ring-2 ring-primary/30">
-                                            <span className="material-symbols-outlined">person</span>
-                                        </div>
-                                        <div className="w-16 h-16 rounded-full border-4 border-[#221016] bg-[#331922] flex items-center justify-center text-primary/50 ring-2 ring-primary/30">
-                                            <span className="material-symbols-outlined">person</span>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        )}
-                        {/* Days Together Badge */}
-                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#331922] px-3 py-1 rounded-full border border-[#673244] flex items-center gap-1.5 whitespace-nowrap shadow-lg">
-                            <span className="material-symbols-outlined text-primary text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span>
-                            {currentLocket?.anniversary_date ? (
-                                <span className="text-[10px] font-bold text-white/60 uppercase tracking-wide">
-                                    {Math.max(0, Math.floor((Date.now() - new Date(currentLocket.anniversary_date).getTime()) / (1000 * 60 * 60 * 24))).toLocaleString()} days together
-                                </span>
-                            ) : (
-                                <span className="text-[10px] font-bold text-white/60 uppercase tracking-wide">Together Forever</span>
-                            )}
-                        </div>
-                    </div>
-                    <h1 className="font-serif italic text-4xl md:text-5xl text-white mb-3 text-center">Our Timeline</h1>
-                    <p className="text-white/40 text-sm tracking-wide">{currentLocket?.name || 'Our Story'}</p>
-                </div>
-
-                {/* Timeline Items */}
-                <div className="space-y-12 md:space-y-20 relative">
-                    {items.map((item, index) => {
-                        const isEven = index % 2 === 0;
-                        return (
-                            <div
-                                key={item.id}
-                                className={`flex flex-col md:flex-row items-center ${isEven ? 'md:flex-row-reverse' : ''} gap-8 md:gap-12`}
-                                style={{
-                                    animation: `fadeSlideIn 0.6s ease-out ${index * 0.1}s both`
-                                }}
-                            >
-                                {/* Content Card */}
-                                <div className="w-full md:w-5/12 flex justify-center">
-                                    {item.type === 'journal' ? (
-                                        <JournalCard
-                                            id={item.id}
-                                            date={item.date}
-                                            location={item.location}
-                                            imageUrl={item.imageUrl}
-                                            caption={item.caption}
-                                            likes={item.likes}
-                                            isLiked={item.isLiked}
-                                            comments={item.comments}
-                                            authorAvatarUrl={item.authorAvatarUrl}
-                                            mediaItems={item.mediaItems}
-                                            align={isEven ? 'right' : 'left'}
-                                            className="transform-gpu"
-                                            onEdit={() => setEditingMemory(item.rawGroup)}
-                                            onComment={() => setCommentingMemory({
-                                                id: item.id,
-                                                title: item.caption || 'Memory'
-                                            })}
-                                            onImageClick={() => handleViewMemory(item.rawGroup)}
-                                        />
-                                    ) : (
-                                        <LoveNoteCard
-                                            {...item}
-                                            align={isEven ? 'right' : 'left'}
-                                            className="transform-gpu"
-                                        />
-                                    )}
-                                </div>
-
-                                {/* Center Marker on Timeline */}
-                                <div className="hidden md:flex w-2/12 justify-center relative">
-                                    <div className="w-4 h-4 rounded-full bg-primary border-4 border-[#221016] shadow-lg shadow-primary/50 z-10 animate-pulse" />
-                                    <div className="absolute top-8 text-xs font-bold text-white/40 bg-[#331922]/80 px-2 py-0.5 rounded-full border border-[#673244]/50">
-                                        {item.date.split(',')[0]}
+                                            <LoveNoteCard {...item} />
+                                        )}
                                     </div>
-                                </div>
-
-                                {/* Empty Space for Balance */}
-                                <div className="hidden md:block w-5/12" />
+                                ))}
                             </div>
-                        );
-                    })}
+                        </div>
+                    ))}
                 </div>
-
-                {/* Load More Indicator */}
-                {items.length > 5 && (
-                    <div className="mt-20 flex justify-center pb-20">
-                        <div className="h-10 w-1 rounded-full bg-gradient-to-b from-primary/50 to-transparent" />
-                    </div>
-                )}
             </div>
 
-            {/* Edit Memory Modal */}
+            {/* Modals */}
             {editingMemory && (
                 <EditMemoryModal
                     isOpen={true}
@@ -489,7 +368,6 @@ export function TimelineFeed() {
                 />
             )}
 
-            {/* Comments Panel */}
             {commentingMemory && (
                 <CommentsPanel
                     isOpen={true}
@@ -499,7 +377,6 @@ export function TimelineFeed() {
                 />
             )}
 
-            {/* Memory Detail Modal */}
             {viewingMemory && (
                 <MemoryDetailModal
                     isOpen={true}
@@ -521,20 +398,6 @@ export function TimelineFeed() {
                     }}
                 />
             )}
-
-            {/* Animation keyframes */}
-            <style jsx global>{`
-                @keyframes fadeSlideIn {
-                    from {
-                        opacity: 0;
-                        transform: translateY(30px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
-            `}</style>
         </div>
     );
 }

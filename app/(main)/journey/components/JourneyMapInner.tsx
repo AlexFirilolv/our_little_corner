@@ -107,7 +107,7 @@ export default function JourneyMap() {
                         >
                             <Popup className="font-body">
                                 <div className="text-center">
-                                    <strong className="block text-primary font-heading">{marker.title}</strong>
+                                    <strong className="block text-primary font-display">{marker.title}</strong>
                                     <span className="text-xs text-muted-foreground">{marker.date}</span>
                                 </div>
                             </Popup>

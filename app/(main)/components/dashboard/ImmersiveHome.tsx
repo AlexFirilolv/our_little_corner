@@ -3,10 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Heart, Settings } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { SpotlightCard } from './SpotlightCard';
 import { PinnedNote } from './PinnedNote';
-import { WidgetCarousel } from './WidgetCarousel';
 import { BucketListWidget } from './widgets/BucketListWidget';
 import { CountdownWidget } from '@/(main)/profile/components/CountdownWidget';
 import { EditMemoryModal } from '@/(main)/timeline/components/EditMemoryModal';
@@ -23,18 +21,15 @@ interface ImmersiveHomeProps {
 }
 
 export function ImmersiveHome({ locket, user }: ImmersiveHomeProps) {
-  // Modal states (still used by SpotlightCard)
   const [editingMemory, setEditingMemory] = useState<MemoryGroup | null>(null);
   const [commentingMemory, setCommentingMemory] = useState<{ id: string; title: string } | null>(null);
   const [viewingMemory, setViewingMemory] = useState<MemoryGroup | null>(null);
   const [viewingMemoryLike, setViewingMemoryLike] = useState({ isLiked: false, likeCount: 0 });
 
-  // Calculate days together
   const daysTogether = locket.anniversary_date
     ? Math.floor((Date.now() - new Date(locket.anniversary_date).getTime()) / (1000 * 60 * 60 * 24))
     : null;
 
-  // Calculate countdown target
   const targetDate = locket.next_countdown_date
     ? new Date(locket.next_countdown_date)
     : locket.anniversary_date
@@ -48,7 +43,6 @@ export function ImmersiveHome({ locket, user }: ImmersiveHomeProps) {
 
   const countdownTitle = locket.next_countdown_event_name || (locket.anniversary_date ? 'Anniversary' : 'Next Milestone');
 
-  // Get greeting based on time of day
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good Morning';
@@ -112,110 +106,81 @@ export function ImmersiveHome({ locket, user }: ImmersiveHomeProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#221016] pb-24 md:pb-8">
+    <div className="min-h-screen pb-24 md:pb-8">
       <div className="container mx-auto px-4 max-w-5xl">
 
-        {/* 1. Header: Greeting + Settings */}
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between pt-6 pb-2"
-        >
+        {/* Header */}
+        <div className="flex items-center justify-between pt-6 pb-2 animate-fade-in">
           <div>
-            <p className="text-white/50 text-sm font-medium">
+            <p className="text-muted text-body-sm font-medium">
               {getGreeting()}, {firstName}
             </p>
-            <h1 className="font-heading text-2xl md:text-3xl font-bold text-white leading-tight">
+            <h1 className="font-display text-display text-foreground leading-tight">
               {locket.name}
             </h1>
           </div>
           <Link
             href="/settings"
-            className="p-2.5 bg-white/[0.07] backdrop-blur-md rounded-full hover:bg-white/[0.12] transition-colors border border-white/[0.08]"
+            className="p-2.5 bg-elevated rounded-lg hover:bg-foreground/5 transition-colors border border-border"
             aria-label="Locket settings"
           >
-            <Settings className="w-4 h-4 text-white/70" />
+            <Settings className="w-4 h-4 text-muted" />
           </Link>
-        </motion.div>
+        </div>
 
-        {/* 2. Days Together Counter */}
+        {/* Days Together */}
         {daysTogether !== null && daysTogether > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="mb-6"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 bg-white/[0.07] backdrop-blur-md rounded-full px-4 py-2 border border-white/[0.08]">
-                <Heart className="w-3.5 h-3.5 text-primary fill-primary" />
-                <span className="font-heading font-bold text-white text-lg">
-                  {daysTogether.toLocaleString()}
-                </span>
-                <span className="text-white/50 text-sm">days together</span>
-              </div>
+          <div className="mb-6 animate-fade-in">
+            <div className="flex items-baseline gap-3">
+              <span className="font-display text-display-xl text-primary leading-none">
+                {daysTogether.toLocaleString()}
+              </span>
+              <span className="text-muted text-body">days together</span>
               {formattedAnniversary && (
-                <span className="text-white/30 text-xs hidden sm:inline">
+                <span className="text-faint text-caption hidden sm:inline">
                   since {formattedAnniversary}
                 </span>
               )}
             </div>
-          </motion.div>
+          </div>
         )}
 
-        {/* 3. Pinned Fridge (standalone, centered) */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="flex items-start justify-center py-4 mb-6"
-        >
+        {/* Pinned Note */}
+        <div className="flex items-start justify-center py-4 mb-6 animate-fade-in">
           <PinnedNote
             locketId={locket.id}
             partnerName="your partner"
           />
-        </motion.div>
+        </div>
 
-        {/* 4. Spotlight / On This Day (full-width) */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="mb-6"
-        >
+        {/* Spotlight */}
+        <div className="mb-6 animate-fade-in">
           <SpotlightCard locketId={locket.id} onViewMemory={handleViewMemory} />
-        </motion.div>
+        </div>
 
-        {/* 5. Widget Carousel (Countdown + BucketList) */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="mb-6"
-        >
-          <WidgetCarousel>
-            {targetDate ? (
-              <CountdownWidget targetDate={targetDate} title={countdownTitle} />
-            ) : (
-              <div className="bg-gradient-to-br from-primary/30 to-primary/10 backdrop-blur-xl rounded-2xl p-6 text-white relative overflow-hidden flex flex-col items-center text-center justify-center min-h-[180px] border border-white/[0.08]">
-                <p className="font-heading text-xl mb-2">Set a Date</p>
-                <p className="text-white/60 text-sm mb-4">
-                  Add your anniversary or next trip to see a countdown here.
-                </p>
-                <Link
-                  href="/settings"
-                  className="bg-white/15 hover:bg-white/25 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-bold transition-colors border border-white/10"
-                >
-                  Configure Locket
-                </Link>
-              </div>
-            )}
-            <BucketListWidget locketId={locket.id} />
-          </WidgetCarousel>
-        </motion.div>
+        {/* Widget Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 animate-fade-in">
+          {targetDate ? (
+            <CountdownWidget targetDate={targetDate} title={countdownTitle} />
+          ) : (
+            <div className="card-base p-6 flex flex-col items-center text-center justify-center min-h-[180px]">
+              <p className="font-display text-subheading text-foreground mb-2">Set a Date</p>
+              <p className="text-muted text-body-sm mb-4">
+                Add your anniversary or next trip to see a countdown here.
+              </p>
+              <Link
+                href="/settings"
+                className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-body-sm font-medium transition-all hover:brightness-110"
+              >
+                Configure Locket
+              </Link>
+            </div>
+          )}
+          <BucketListWidget locketId={locket.id} />
+        </div>
       </div>
 
-      {/* Modals (used by SpotlightCard) */}
+      {/* Modals */}
       {editingMemory && (
         <EditMemoryModal
           isOpen={true}

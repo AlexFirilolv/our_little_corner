@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLocket } from '@/contexts/LocketContext'
-import { ArrowLeft, Loader2, Camera, User, CalendarDays, MapPin, Edit3, Save, ZoomOut, ZoomIn, Move, LogOut, ChevronLeft, ChevronRight, Heart } from 'lucide-react'
+import { ArrowLeft, Loader2, Camera, User, CalendarDays, MapPin, Edit3, Save, ZoomOut, ZoomIn, Move, LogOut, ChevronLeft, ChevronRight, Heart, AlertCircle, CheckCircle } from 'lucide-react'
 import { format, startOfMonth, startOfWeek, endOfMonth, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, getYear, setYear, addMonths, subMonths } from 'date-fns'
 
 interface PlaceSuggestion {
@@ -300,7 +300,7 @@ export default function SettingsPage() {
             reader.onloadend = () => {
                 const result = reader.result as string
                 setCoverPhotoPreview(result)
-                const img = new Image()
+                const img = new window.Image()
                 img.onload = () => {
                     const containerAspect = 16 / 9
                     const imageAspect = img.width / img.height
@@ -403,58 +403,58 @@ export default function SettingsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-[#221016] font-display text-white pb-20">
+        <div className="min-h-screen bg-background font-body text-foreground pb-20">
             {/* Header */}
-            <div className="sticky top-0 z-40 bg-[#221016]/80 backdrop-blur-md border-b border-white/5 px-4 py-4 flex items-center justify-between">
+            <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border px-4 py-4 flex items-center justify-between">
                 <button
                     onClick={() => router.back()}
-                    className="p-2 rounded-full hover:bg-white/10 transition-colors"
+                    className="p-2 rounded-lg hover:bg-foreground/5 transition-colors"
                 >
-                    <ArrowLeft className="w-5 h-5 text-white/70" />
+                    <ArrowLeft className="w-5 h-5 text-muted" />
                 </button>
-                <h1 className="font-heading text-xl font-bold">Settings</h1>
-                <div className="w-9" /> {/* Spacer */}
+                <h1 className="font-display text-heading">Settings</h1>
+                <div className="w-9" />
             </div>
 
             <div className="max-w-2xl mx-auto px-4 py-8 space-y-10">
 
                 {/* Error / Success Messages */}
                 {error && (
-                    <div className="bg-red-900/30 border border-red-500/30 rounded-lg p-4 flex items-center gap-3 text-red-300">
-                        <span className="material-symbols-outlined text-xl flex-shrink-0">error</span>
-                        <p className="text-sm">{error}</p>
+                    <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 flex items-center gap-3 text-destructive">
+                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                        <p className="text-body-sm">{error}</p>
                     </div>
                 )}
                 {successMsg && (
-                    <div className="bg-green-900/30 border border-green-500/30 rounded-lg p-4 flex items-center gap-3 text-green-300">
-                        <span className="material-symbols-outlined text-xl flex-shrink-0">check_circle</span>
-                        <p className="text-sm">{successMsg}</p>
+                    <div className="bg-secondary/10 border border-secondary/30 rounded-lg p-4 flex items-center gap-3 text-secondary">
+                        <CheckCircle className="w-5 h-5 flex-shrink-0" />
+                        <p className="text-body-sm">{successMsg}</p>
                     </div>
                 )}
 
                 {/* Section: Profile */}
                 <section className="space-y-6">
-                    <div className="flex items-center gap-3 pb-2 border-b border-white/10">
-                        <User className="w-5 h-5 text-[#C8A659]" />
-                        <h2 className="text-lg font-bold text-white/90">Your Profile</h2>
+                    <div className="flex items-center gap-3 pb-2 border-b border-border">
+                        <User className="w-5 h-5 text-accent" />
+                        <h2 className="font-display text-subheading text-foreground">Your Profile</h2>
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-6 items-start">
                         <div className="relative group cursor-pointer flex-shrink-0">
                             <label htmlFor="settings-avatar-upload" className="cursor-pointer">
-                                <div className="relative h-24 w-24 rounded-full border border-white/20 hover:border-[#C8A659]/50 transition-colors duration-300 flex items-center justify-center bg-[#331922] overflow-hidden">
+                                <div className="relative h-24 w-24 rounded-full border border-border hover:border-accent/50 transition-colors duration-300 flex items-center justify-center bg-elevated overflow-hidden">
                                     {avatarPreview ? (
                                         <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
                                     ) : displayName ? (
-                                        <span className="text-3xl font-bold text-white/40">{displayName.charAt(0).toUpperCase()}</span>
+                                        <span className="text-3xl font-bold text-faint">{displayName.charAt(0).toUpperCase()}</span>
                                     ) : (
-                                        <User className="w-8 h-8 text-white/20" />
+                                        <User className="w-8 h-8 text-faint" />
                                     )}
                                 </div>
                             </label>
                             <button
                                 onClick={() => avatarInputRef.current?.click()}
-                                className="absolute bottom-0 right-0 h-8 w-8 rounded-full bg-[#331922] border border-white/20 text-white flex items-center justify-center hover:bg-[#4a2431] transition-colors shadow-lg"
+                                className="absolute bottom-0 right-0 h-8 w-8 rounded-full bg-elevated border border-border text-foreground flex items-center justify-center hover:bg-foreground/5 transition-colors shadow-sm"
                             >
                                 <Camera className="w-4 h-4" />
                             </button>
@@ -463,22 +463,22 @@ export default function SettingsPage() {
 
                         <div className="flex-1 w-full space-y-4">
                             <div className="space-y-1">
-                                <label className="text-sm text-white/60 pl-1">Display Name</label>
+                                <label className="text-body-sm text-muted pl-1">Display Name</label>
                                 <input
                                     type="text"
                                     value={displayName}
                                     onChange={(e) => setDisplayName(e.target.value)}
-                                    className="w-full bg-[#331922] border border-white/10 rounded-lg py-3 px-4 text-white placeholder-white/30 focus:outline-none focus:border-[#C8A659] transition-colors"
+                                    className="w-full bg-elevated border border-border rounded-md py-3 px-4 text-foreground placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
                                     placeholder="Your Name"
                                 />
                             </div>
                             <div className="space-y-1 opacity-60">
-                                <label className="text-sm text-white/60 pl-1">Email</label>
+                                <label className="text-body-sm text-muted pl-1">Email</label>
                                 <input
                                     type="email"
                                     value={user?.email || ''}
                                     disabled
-                                    className="w-full bg-[#2a161e] border border-transparent rounded-lg py-3 px-4 text-white cursor-not-allowed"
+                                    className="w-full bg-background border border-transparent rounded-md py-3 px-4 text-foreground cursor-not-allowed"
                                 />
                             </div>
                         </div>
@@ -487,26 +487,26 @@ export default function SettingsPage() {
 
                 {/* Section: Locket Details */}
                 <section className="space-y-6">
-                    <div className="flex items-center gap-3 pb-2 border-b border-white/10">
-                        <Heart className="w-5 h-5 text-[#C8A659]" />
-                        <h2 className="text-lg font-bold text-white/90">Locket Details</h2>
+                    <div className="flex items-center gap-3 pb-2 border-b border-border">
+                        <Heart className="w-5 h-5 text-accent" />
+                        <h2 className="font-display text-subheading text-foreground">Locket Details</h2>
                     </div>
 
                     <div className="space-y-5">
                         <div className="space-y-1">
-                            <label className="text-sm text-white/60 pl-1">Locket Name</label>
+                            <label className="text-body-sm text-muted pl-1">Locket Name</label>
                             <input
                                 type="text"
                                 value={locketName}
                                 onChange={(e) => setLocketName(e.target.value)}
-                                className="w-full bg-[#331922] border border-white/10 rounded-lg py-3 px-4 text-white placeholder-white/30 focus:outline-none focus:border-[#C8A659] transition-colors"
+                                className="w-full bg-elevated border border-border rounded-md py-3 px-4 text-foreground placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
                                 placeholder="e.g. Our Story"
                             />
                         </div>
 
                         {/* Anniversary Date */}
                         <div className="relative" ref={calendarRef}>
-                            <label className="text-sm text-white/60 pl-1 mb-1 block">Anniversary / Start Date</label>
+                            <label className="text-body-sm text-muted pl-1 mb-1 block">Anniversary / Start Date</label>
                             <button
                                 type="button"
                                 onClick={() => {
@@ -514,11 +514,11 @@ export default function SettingsPage() {
                                     setShowYearPicker(false)
                                     if (selectedDate) setCalendarViewDate(selectedDate)
                                 }}
-                                className="w-full flex items-center justify-between bg-[#331922] border border-white/10 rounded-lg py-3 px-4 text-left hover:border-white/20 focus:border-[#C8A659] focus:outline-none transition-colors"
+                                className="w-full flex items-center justify-between bg-elevated border border-border rounded-md py-3 px-4 text-left hover:border-border-emphasis focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition-colors"
                             >
                                 <div className="flex items-center gap-3">
-                                    <CalendarDays className="w-4 h-4 text-white/40" />
-                                    <span className={selectedDate ? 'text-white' : 'text-white/30'}>
+                                    <CalendarDays className="w-4 h-4 text-faint" />
+                                    <span className={selectedDate ? 'text-foreground' : 'text-faint'}>
                                         {selectedDate
                                             ? exactDayUnknown
                                                 ? format(selectedDate, 'MMMM yyyy')
@@ -526,15 +526,15 @@ export default function SettingsPage() {
                                             : 'Select a date'}
                                     </span>
                                 </div>
-                                <Edit3 className="w-4 h-4 text-white/20" />
+                                <Edit3 className="w-4 h-4 text-faint" />
                             </button>
 
                             {/* Calendar Dropdown */}
                             {calendarOpen && (
-                                <div className="absolute z-50 mt-2 w-full sm:w-80 right-0 bg-[#2a161e] border border-[#673244] rounded-xl shadow-2xl p-3 animate-in fade-in slide-in-from-top-2">
+                                <div className="absolute z-50 mt-2 w-full sm:w-80 right-0 bg-elevated border border-border rounded-xl shadow-lg p-3">
                                     {showYearPicker ? (
                                         <div>
-                                            <button type="button" onClick={() => setShowYearPicker(false)} className="flex items-center gap-1 text-xs text-white/60 hover:text-white mb-2 pb-2 border-b border-white/5 w-full">
+                                            <button type="button" onClick={() => setShowYearPicker(false)} className="flex items-center gap-1 text-caption text-muted hover:text-foreground mb-2 pb-2 border-b border-border w-full">
                                                 <ChevronLeft className="w-3 h-3" /> Back to calendar
                                             </button>
                                             <div className="grid grid-cols-4 gap-1 max-h-[240px] overflow-y-auto pr-1">
@@ -546,7 +546,7 @@ export default function SettingsPage() {
                                                             setCalendarViewDate(setYear(calendarViewDate, y))
                                                             setShowYearPicker(false)
                                                         }}
-                                                        className={`py-2 rounded-lg text-sm transition-colors ${getYear(calendarViewDate) === y ? 'bg-primary text-white font-bold' : 'text-white/70 hover:bg-white/10'}`}
+                                                        className={`py-2 rounded-lg text-body-sm transition-colors ${getYear(calendarViewDate) === y ? 'bg-primary text-primary-foreground font-bold' : 'text-foreground/70 hover:bg-foreground/5'}`}
                                                     >
                                                         {y}
                                                     </button>
@@ -555,20 +555,20 @@ export default function SettingsPage() {
                                         </div>
                                     ) : (
                                         <>
-                                            <div className="flex items-center justify-between pb-3 border-b border-white/5">
-                                                <button type="button" onClick={() => setCalendarViewDate(subMonths(calendarViewDate, 1))} className="p-1 rounded-lg hover:bg-white/10 text-white/60">
+                                            <div className="flex items-center justify-between pb-3 border-b border-border">
+                                                <button type="button" onClick={() => setCalendarViewDate(subMonths(calendarViewDate, 1))} className="p-1 rounded-lg hover:bg-foreground/5 text-muted">
                                                     <ChevronLeft className="w-4 h-4" />
                                                 </button>
-                                                <button type="button" onClick={() => setShowYearPicker(true)} className="text-sm font-bold text-white hover:text-[#C8A659]">
+                                                <button type="button" onClick={() => setShowYearPicker(true)} className="text-body-sm font-bold text-foreground hover:text-primary">
                                                     {format(calendarViewDate, 'MMMM yyyy')}
                                                 </button>
-                                                <button type="button" onClick={() => setCalendarViewDate(addMonths(calendarViewDate, 1))} className="p-1 rounded-lg hover:bg-white/10 text-white/60">
+                                                <button type="button" onClick={() => setCalendarViewDate(addMonths(calendarViewDate, 1))} className="p-1 rounded-lg hover:bg-foreground/5 text-muted">
                                                     <ChevronRight className="w-4 h-4" />
                                                 </button>
                                             </div>
                                             <div className="grid grid-cols-7 pt-2">
                                                 {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
-                                                    <div key={d} className="text-center text-[10px] font-medium text-white/30 py-1">{d}</div>
+                                                    <div key={d} className="text-center text-caption font-medium text-faint py-1">{d}</div>
                                                 ))}
                                             </div>
                                             <div className="grid grid-cols-7 pb-2 gap-1">
@@ -581,7 +581,7 @@ export default function SettingsPage() {
                                                             type="button"
                                                             disabled={!inMonth}
                                                             onClick={() => { setSelectedDate(day); if (!exactDayUnknown) setCalendarOpen(false) }}
-                                                            className={`h-8 w-full rounded-md text-sm transition-colors ${!inMonth ? 'text-white/10' : isSelected ? 'bg-primary text-white font-bold' : 'text-white/70 hover:bg-white/10'}`}
+                                                            className={`h-8 w-full rounded-md text-body-sm transition-colors ${!inMonth ? 'text-faint/30' : isSelected ? 'bg-primary text-primary-foreground font-bold' : 'text-foreground/70 hover:bg-foreground/5'}`}
                                                         >
                                                             {format(day, 'd')}
                                                         </button>
@@ -596,9 +596,9 @@ export default function SettingsPage() {
 
                         {/* Location */}
                         <div className="relative">
-                            <label className="text-sm text-white/60 pl-1 mb-1 block">Where did you meet?</label>
+                            <label className="text-body-sm text-muted pl-1 mb-1 block">Where did you meet?</label>
                             <div className="relative">
-                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40">
+                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-faint">
                                     <MapPin className="w-4 h-4" />
                                 </div>
                                 <input
@@ -608,29 +608,29 @@ export default function SettingsPage() {
                                     onChange={(e) => handleLocationChange(e.target.value)}
                                     onKeyDown={handleLocationKeyDown}
                                     onFocus={() => locationOrigin.length >= 2 && suggestions.length > 0 && setShowSuggestions(true)}
-                                    className="w-full bg-[#331922] border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white placeholder-white/30 focus:outline-none focus:border-[#C8A659] transition-colors"
+                                    className="w-full bg-elevated border border-border rounded-md py-3 pl-10 pr-4 text-foreground placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
                                     placeholder="Search for a place..."
                                 />
                                 {isLoadingSuggestions && (
                                     <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                                        <Loader2 className="w-4 h-4 text-white/40 animate-spin" />
+                                        <Loader2 className="w-4 h-4 text-faint animate-spin" />
                                     </div>
                                 )}
                             </div>
 
                             {showSuggestions && suggestions.length > 0 && (
-                                <div ref={suggestionsRef} className="absolute z-50 w-full mt-1 bg-[#2a161e] border border-white/10 rounded-lg shadow-xl overflow-hidden">
+                                <div ref={suggestionsRef} className="absolute z-50 w-full mt-1 bg-elevated border border-border rounded-lg shadow-lg overflow-hidden">
                                     {suggestions.map((suggestion, index) => (
                                         <button
                                             key={suggestion.placeId}
                                             type="button"
                                             onClick={() => selectSuggestion(suggestion)}
-                                            className={`w-full px-4 py-3 text-left hover:bg-[#331922] transition-colors flex items-start gap-3 ${index === selectedIndex ? 'bg-[#331922]' : ''}`}
+                                            className={`w-full px-4 py-3 text-left hover:bg-foreground/5 transition-colors flex items-start gap-3 ${index === selectedIndex ? 'bg-foreground/5' : ''}`}
                                         >
-                                            <MapPin className="w-4 h-4 text-white/40 mt-0.5 shrink-0" />
+                                            <MapPin className="w-4 h-4 text-faint mt-0.5 shrink-0" />
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm text-white font-medium truncate">{suggestion.name}</p>
-                                                {suggestion.description && <p className="text-xs text-white/40 truncate">{suggestion.description}</p>}
+                                                <p className="text-body-sm text-foreground font-medium truncate">{suggestion.name}</p>
+                                                {suggestion.description && <p className="text-caption text-muted truncate">{suggestion.description}</p>}
                                             </div>
                                         </button>
                                     ))}
@@ -640,13 +640,13 @@ export default function SettingsPage() {
 
                         {/* Cover Photo */}
                         <div className="space-y-2">
-                            <label className="text-sm text-white/60 pl-1">Dashboard Cover Photo</label>
+                            <label className="text-body-sm text-muted pl-1">Dashboard Cover Photo</label>
                             <div
                                 ref={coverContainerRef}
                                 onClick={() => !coverPhotoPreview && coverPhotoInputRef.current?.click()}
                                 onMouseDown={coverPhotoPreview ? handleCoverMouseDown : undefined}
                                 onTouchStart={coverPhotoPreview ? handleCoverTouchStart : undefined}
-                                className={`relative w-full aspect-video rounded-xl border border-white/10 overflow-hidden bg-[#2a161e] flex items-center justify-center select-none ${coverPhotoPreview ? 'cursor-move' : 'cursor-pointer hover:border-white/20'}`}
+                                className={`relative w-full aspect-video rounded-xl border border-border overflow-hidden bg-elevated flex items-center justify-center select-none ${coverPhotoPreview ? 'cursor-move' : 'cursor-pointer hover:border-border-emphasis'}`}
                             >
                                 {coverPhotoPreview ? (
                                     <>
@@ -665,22 +665,22 @@ export default function SettingsPage() {
                                                 e.currentTarget.style.display = 'none';
                                             }}
                                         />
-                                        <div className={`absolute inset-0 bg-black/40 flex flex-col items-center justify-center transition-opacity ${isDraggingCover ? 'opacity-0' : 'opacity-0 hover:opacity-100'}`}>
+                                        <div className={`absolute inset-0 bg-foreground/40 flex flex-col items-center justify-center transition-opacity ${isDraggingCover ? 'opacity-0' : 'opacity-0 hover:opacity-100'}`}>
                                             <Move className="w-8 h-8 text-white mb-2" />
-                                            <span className="text-white text-sm font-medium">Drag to reposition</span>
+                                            <span className="text-white text-body-sm font-medium">Drag to reposition</span>
                                         </div>
                                         <button
                                             type="button"
                                             onClick={(e) => { e.stopPropagation(); coverPhotoInputRef.current?.click() }}
-                                            className="absolute top-3 right-3 p-2 bg-black/50 hover:bg-black/70 rounded-full backdrop-blur-sm transition-colors text-white z-10"
+                                            className="absolute top-3 right-3 p-2 bg-foreground/50 hover:bg-foreground/70 rounded-lg backdrop-blur-sm transition-colors text-white z-10"
                                         >
                                             <Edit3 className="w-4 h-4" />
                                         </button>
                                     </>
                                 ) : (
-                                    <div className="flex flex-col items-center text-white/40">
+                                    <div className="flex flex-col items-center text-faint">
                                         <Camera className="w-8 h-8 mb-2" />
-                                        <span className="text-sm">Click to add cover photo</span>
+                                        <span className="text-body-sm">Click to add cover photo</span>
                                     </div>
                                 )}
                                 <input type="file" className="hidden" accept="image/*" onChange={handleCoverPhotoChange} ref={coverPhotoInputRef} />
@@ -688,16 +688,16 @@ export default function SettingsPage() {
 
                             {coverPhotoPreview && (
                                 <div className="flex items-center gap-3 pt-2">
-                                    <button type="button" onClick={() => setCoverPhotoZoom(prev => Math.max(100, prev - 10))} className="p-1.5 rounded-lg bg-[#331922] text-white/60">
+                                    <button type="button" onClick={() => setCoverPhotoZoom(prev => Math.max(100, prev - 10))} className="p-1.5 rounded-lg bg-elevated border border-border text-muted hover:text-foreground transition-colors">
                                         <ZoomOut className="w-4 h-4" />
                                     </button>
                                     <div className="flex-1 relative">
                                         <input
                                             type="range" min="100" max="200" value={coverPhotoZoom} onChange={(e) => setCoverPhotoZoom(Number(e.target.value))}
-                                            className="w-full h-1.5 bg-[#331922] rounded-lg appearance-none cursor-pointer accent-[#C8A659] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#C8A659]"
+                                            className="w-full h-1.5 bg-border rounded-lg appearance-none cursor-pointer accent-accent [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent"
                                         />
                                     </div>
-                                    <button type="button" onClick={() => setCoverPhotoZoom(prev => Math.min(200, prev + 10))} className="p-1.5 rounded-lg bg-[#331922] text-white/60">
+                                    <button type="button" onClick={() => setCoverPhotoZoom(prev => Math.min(200, prev + 10))} className="p-1.5 rounded-lg bg-elevated border border-border text-muted hover:text-foreground transition-colors">
                                         <ZoomIn className="w-4 h-4" />
                                     </button>
                                 </div>
@@ -707,10 +707,10 @@ export default function SettingsPage() {
                 </section>
 
                 {/* Action Buttons */}
-                <div className="pt-6 flex items-center justify-end gap-4 border-t border-white/10">
+                <div className="pt-6 flex items-center justify-end gap-4 border-t border-border">
                     <button
                         onClick={handleLogout}
-                        className="flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:text-red-300 transition-colors mr-auto"
+                        className="flex items-center gap-2 px-4 py-2 text-body-sm text-destructive hover:text-destructive/80 transition-colors mr-auto"
                     >
                         <LogOut className="w-4 h-4" />
                         Sign Out
@@ -718,7 +718,7 @@ export default function SettingsPage() {
 
                     <button
                         onClick={() => router.back()}
-                        className="px-6 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+                        className="px-6 py-2.5 rounded-lg text-body-sm font-medium text-muted hover:text-foreground hover:bg-foreground/5 transition-colors"
                         disabled={isLoading}
                     >
                         Cancel
@@ -726,7 +726,7 @@ export default function SettingsPage() {
                     <button
                         onClick={handleSave}
                         disabled={isLoading}
-                        className="flex items-center gap-2 bg-[#C8A659] hover:bg-[#dabb70] text-[#221016] px-6 py-2.5 rounded-lg text-sm font-bold transition-all disabled:opacity-50"
+                        className="flex items-center gap-2 bg-primary hover:brightness-110 text-primary-foreground px-6 py-2.5 rounded-lg text-body-sm font-bold transition-all disabled:opacity-50 shadow-sm"
                     >
                         {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                         Save Changes

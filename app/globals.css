@@ -1,30 +1,68 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Lato:wght@300;400;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ══════════════════════════════════
+   PRESSED BOTANICA — Design Tokens
+   ══════════════════════════════════ */
+
 @layer base {
   :root {
-    --background: 253 246 247; /* #FDF6F7 - Blush Paper */
-    --foreground: 74 44 53; /* #4A2C35 - Dark Truffle */
-    --card: 253 246 247;
-    --card-foreground: 74 44 53;
-    --popover: 253 246 247;
-    --popover-foreground: 74 44 53;
-    --primary: 186 74 104; /* #BA4A68 - Deep Rose */
-    --primary-foreground: 253 246 247;
-    --secondary: 253 246 247; /* #FDF6F7 - Blush Paper */
-    --secondary-foreground: 74 44 53;
-    --muted: 245 238 240; /* Slightly darker blush */
-    --muted-foreground: 92 84 112; /* Truffle */
-    --accent: 200 166 89; /* #C8A659 - Muted Gold */
-    --accent-foreground: 74 44 53;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 186 74 104; /* Deep Rose */
-    --input: 253 246 247;
-    --ring: 186 74 104;
+    /* Surfaces */
+    --background: #F6F1EB;
+    --elevated: #FFFCF7;
+    --foreground: #2C2420;
+    --muted: #8A7E76;
+    --faint: #B8AFA7;
+
+    /* Brand */
+    --primary: #C04D36;
+    --primary-foreground: #FFF8F0;
+    --secondary: #2E5D4B;
+    --secondary-foreground: #F0F7F3;
+    --accent: #D4A853;
+    --accent-foreground: #2C2420;
+
+    /* Borders */
+    --border: #E2D9CF;
+    --border-emphasis: #C9BFB3;
+
+    /* Semantic surfaces */
+    --surface-rose: #F2E4DE;
+    --surface-green: #E4EDE8;
+    --surface-amber: #F0E8D4;
+
+    /* Destructive */
+    --destructive: #B83A2A;
+    --destructive-foreground: #FFF8F0;
+
+    /* Radius */
     --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: #1C1916;
+    --elevated: #262220;
+    --foreground: #E8E0D8;
+    --muted: #9A908A;
+    --faint: #665E58;
+
+    --primary: #D4613E;
+    --primary-foreground: #FFF8F0;
+    --secondary: #4A9A78;
+    --secondary-foreground: #F0F7F3;
+    --accent: #D4A853;
+    --accent-foreground: #E8E0D8;
+
+    --border: #3A3430;
+    --border-emphasis: #4A4440;
+
+    --surface-rose: #2E2220;
+    --surface-green: #1E2A24;
+    --surface-amber: #2A2518;
+
+    --destructive: #D4433A;
+    --destructive-foreground: #FFF8F0;
   }
 }
 
@@ -33,87 +71,97 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-body;
+    @apply bg-background text-foreground font-body antialiased;
+    font-size: 0.9375rem;
+    line-height: 1.6;
   }
-  
   h1, h2, h3 {
-    @apply font-heading;
+    @apply font-display;
   }
 }
 
+/* ══════════════════════════════════
+   SCROLLBAR
+   ══════════════════════════════════ */
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-emphasis); }
+
+/* ══════════════════════════════════
+   COMPONENT CLASSES
+   ══════════════════════════════════ */
+
 @layer components {
-  .masonry-grid {
-    column-count: 1;
-    column-gap: 1rem;
-    
-    @media (min-width: 640px) {
-      column-count: 2;
-    }
-    
-    @media (min-width: 1024px) {
-      column-count: 3;
-    }
-    
-    @media (min-width: 1280px) {
-      column-count: 4;
-    }
+  /* ── Cards ── */
+  .card-base {
+    @apply bg-elevated border border-border rounded-xl shadow-sm;
+    transition: all 200ms cubic-bezier(0.25, 0.1, 0.25, 1);
   }
-  
-  .masonry-item {
-    @apply mb-4 break-inside-avoid;
+
+  .card-base:hover {
+    @apply shadow-md border-border-emphasis;
+    transform: translateY(-2px);
   }
-  
-  .romantic-card {
-    @apply bg-white/80 backdrop-blur-sm border border-accent/30 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02];
+
+  .card-feature {
+    @apply bg-elevated border border-border shadow-sm relative overflow-hidden;
+    border-radius: 1.5rem 0.5rem 1.5rem 0.5rem; /* asymmetric: tl-3xl tr-lg br-3xl bl-lg */
+    transition: all 200ms cubic-bezier(0.25, 0.1, 0.25, 1);
   }
-  
-  .glass-card {
-    @apply bg-white/70 backdrop-blur-md border border-white/50 shadow-lg dark:bg-[#221016]/70 dark:border-white/10;
+
+  .card-feature:hover {
+    @apply shadow-md border-border-emphasis;
+    transform: translateY(-2px);
   }
-  
-  .romantic-button {
-    @apply bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 rounded-full font-body font-medium transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg;
+
+  /* Top accent stripe for cards */
+  .card-accent-primary::before {
+    content: '';
+    @apply absolute top-0 left-5 right-5 h-[3px] rounded-full bg-primary/60;
   }
-  
-  .romantic-input {
-    @apply bg-white/50 border-accent/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg px-4 py-3 font-body placeholder:text-muted-foreground/60;
+
+  .card-accent-secondary::before {
+    content: '';
+    @apply absolute top-0 left-5 right-5 h-[3px] rounded-full bg-secondary/60;
   }
-  
+
+  .card-accent-accent::before {
+    content: '';
+    @apply absolute top-0 left-5 right-5 h-[3px] rounded-full bg-accent/60;
+  }
+
+  /* ── Overline label ── */
+  .overline {
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  /* ── Prose ── */
   .prose {
-    @apply text-sm leading-relaxed;
+    @apply text-body leading-relaxed;
   }
-  
-  .prose p {
-    @apply mb-3;
-  }
-  
-  .prose strong {
-    @apply font-semibold text-foreground;
-  }
-  
-  .prose em {
-    @apply italic;
-  }
-  
-  .prose ul {
-    @apply list-disc list-inside mb-3;
-  }
-  
-  .prose ol {
-    @apply list-decimal list-inside mb-3;
-  }
-  
-  .prose li {
-    @apply mb-1;
-  }
-  
+  .prose p { @apply mb-3; }
+  .prose strong { @apply font-semibold text-foreground; }
+  .prose em { @apply italic; }
+  .prose ul { @apply list-disc list-inside mb-3; }
+  .prose ol { @apply list-decimal list-inside mb-3; }
+  .prose li { @apply mb-1; }
+
   .line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
-  
+
   .line-clamp-3 {
     display: -webkit-box;
     -webkit-line-clamp: 3;
@@ -121,42 +169,40 @@
     overflow: hidden;
   }
 
-  /* Memory Groups Grid Layouts */
+  /* ── Masonry Grid ── */
+  .masonry-grid {
+    column-count: 1;
+    column-gap: 1rem;
+    @media (min-width: 640px) { column-count: 2; }
+    @media (min-width: 1024px) { column-count: 3; }
+    @media (min-width: 1280px) { column-count: 4; }
+  }
+  .masonry-item { @apply mb-4 break-inside-avoid; }
+
+  /* ── Memory Groups Grid Layouts ── */
   .memory-groups-grid.gallery {
     @apply grid gap-6;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   }
-
   .memory-groups-grid.icons {
     @apply grid gap-4;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   }
-
   .memory-groups-grid.list {
-    @apply space-y-0 border border-accent/20 rounded-lg overflow-hidden bg-white/50;
+    @apply space-y-0 border border-border rounded-xl overflow-hidden bg-elevated;
   }
-
   .memory-groups-grid.columns {
     @apply grid gap-4;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   }
-
   .memory-groups-grid.timeline {
     @apply space-y-4;
   }
 
-  /* Mobile responsive adjustments */
   @media (max-width: 640px) {
-    .memory-groups-grid.gallery {
-      grid-template-columns: 1fr;
-    }
-    
-    .memory-groups-grid.icons {
-      grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .memory-groups-grid.columns {
-      grid-template-columns: 1fr;
-    }
+    .memory-groups-grid.gallery { grid-template-columns: 1fr; }
+    .memory-groups-grid.icons { grid-template-columns: repeat(2, 1fr); }
+    .memory-groups-grid.columns { grid-template-columns: 1fr; }
   }
+
 }

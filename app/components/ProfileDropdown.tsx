@@ -85,7 +85,7 @@ export default function ProfileDropdown() {
                 </div>
               )}
               <div className="flex-1">
-                <p className="font-heading text-primary text-lg">
+                <p className="font-display text-primary text-lg">
                   {user.displayName || 'Anonymous'}
                 </p>
                 <p className="font-body text-sm text-muted-foreground">
@@ -101,7 +101,7 @@ export default function ProfileDropdown() {
                 <span className="font-body text-sm font-medium">Your Locket</span>
               </div>
               <div className="ml-6">
-                <p className="font-heading text-primary">{currentLocket.name}</p>
+                <p className="font-display text-primary">{currentLocket.name}</p>
               </div>
             </div>
 
