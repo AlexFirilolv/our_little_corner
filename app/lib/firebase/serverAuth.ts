@@ -167,13 +167,10 @@ export async function getUserLocketsWithRole(firebaseUid: string) {
   return await getUserLockets(firebaseUid);
 }
 
-// Backwards compatibility alias
-export const getUserCornersWithRole = getUserLocketsWithRole;
-
 /**
  * Check if user has access to a specific locket
  */
-export async function checkCornerAccess(locketId: string, firebaseUid: string): Promise<boolean> {
+export async function checkLocketAccess(locketId: string, firebaseUid: string): Promise<boolean> {
   try {
     const { getLocketById } = await import('../db');
     const locket = await getLocketById(locketId, firebaseUid);
@@ -187,7 +184,7 @@ export async function checkCornerAccess(locketId: string, firebaseUid: string): 
 /**
  * Check if user is admin of a specific locket
  */
-export async function checkCornerAdmin(locketId: string, firebaseUid: string): Promise<boolean> {
+export async function checkLocketAdmin(locketId: string, firebaseUid: string): Promise<boolean> {
   try {
     const { getLocketById } = await import('../db');
     const locket = await getLocketById(locketId, firebaseUid);
@@ -209,22 +206,19 @@ export async function getUserFromAuthHeader(authHeader?: string): Promise<Fireba
 }
 
 /**
- * Helper to get user and validate corner access in one call
+ * Helper to get user and validate locket access in one call
  */
-export async function requireCornerAccess(cornerId: string, authHeader?: string): Promise<{ user: FirebaseUser; hasAccess: boolean; isAdmin: boolean }> {
-  const user = authHeader 
+export async function requireLocketAccess(locketId: string, authHeader?: string): Promise<{ user: FirebaseUser; hasAccess: boolean; isAdmin: boolean }> {
+  const user = authHeader
     ? await getUserFromAuthHeader(authHeader)
     : await getCurrentUser();
-    
+
   if (!user) {
     throw new Error('Authentication required');
   }
-  
-  const hasAccess = await checkCornerAccess(cornerId, user.uid);
-  const isAdmin = await checkCornerAdmin(cornerId, user.uid);
+
+  const hasAccess = await checkLocketAccess(locketId, user.uid);
+  const isAdmin = await checkLocketAdmin(locketId, user.uid);
 
   return { user, hasAccess, isAdmin };
 }
-
-// Backwards compatibility alias
-export const requireLocketAccess = requireCornerAccess;

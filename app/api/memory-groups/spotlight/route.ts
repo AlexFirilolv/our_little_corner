@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireCornerAccess } from '@/lib/firebase/serverAuth'
+import { requireLocketAccess } from '@/lib/firebase/serverAuth'
 import { getSpotlightMemory } from '@/lib/db'
 import { generatePresignedDownloadUrl } from '@/lib/gcs'
 
 /**
- * GET /api/memories/spotlight?locketId=xxx - Get spotlight memory (On This Day or random)
+ * GET /api/memory-groups/spotlight?locketId=xxx - Get spotlight memory (On This Day or random)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     }
 
     const authHeader = request.headers.get('Authorization') || undefined
-    const { hasAccess } = await requireCornerAccess(locketId, authHeader)
+    const { hasAccess } = await requireLocketAccess(locketId, authHeader)
 
     if (!hasAccess) {
       return NextResponse.json(

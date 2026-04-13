@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireCornerAccess } from '@/lib/firebase/serverAuth'
+import { requireLocketAccess } from '@/lib/firebase/serverAuth'
 import { pinMemory, unpinMemory, getPinnedMemory } from '@/lib/db'
 import { generatePresignedDownloadUrl } from '@/lib/gcs'
 
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const locketId = params.id
     const authHeader = request.headers.get('Authorization') || undefined
 
-    const { hasAccess } = await requireCornerAccess(locketId, authHeader)
+    const { hasAccess } = await requireLocketAccess(locketId, authHeader)
 
     if (!hasAccess) {
       return NextResponse.json(
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const locketId = params.id
     const authHeader = request.headers.get('Authorization') || undefined
 
-    const { user, hasAccess } = await requireCornerAccess(locketId, authHeader)
+    const { user, hasAccess } = await requireLocketAccess(locketId, authHeader)
 
     if (!hasAccess) {
       return NextResponse.json(
@@ -125,7 +125,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const locketId = params.id
     const authHeader = request.headers.get('Authorization') || undefined
 
-    const { user, hasAccess } = await requireCornerAccess(locketId, authHeader)
+    const { user, hasAccess } = await requireLocketAccess(locketId, authHeader)
 
     if (!hasAccess) {
       return NextResponse.json(

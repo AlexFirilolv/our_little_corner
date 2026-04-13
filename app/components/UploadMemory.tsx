@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import exifr from 'exifr'
+import type { PlaceSuggestion } from '@/lib/types'
 
 interface FileWithPreview {
   file: File
@@ -24,12 +25,6 @@ interface FileWithPreview {
   longitude?: number
 }
 
-interface PlaceSuggestion {
-  placeId: string
-  name: string
-  description: string
-  fullText: string
-}
 
 export default function UploadMemory({ isMilestone = false }: { isMilestone?: boolean }) {
   const { user } = useAuth()

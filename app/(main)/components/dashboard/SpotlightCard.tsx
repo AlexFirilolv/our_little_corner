@@ -20,7 +20,7 @@ export function SpotlightCard({ locketId, onViewMemory }: SpotlightCardProps) {
         const { getCurrentUserToken } = await import('@/lib/firebase/auth');
         const token = await getCurrentUserToken();
 
-        const res = await fetch(`/api/memories/spotlight?locketId=${locketId}`, {
+        const res = await fetch(`/api/memory-groups/spotlight?locketId=${locketId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
 

@@ -4,9 +4,6 @@ export type LocketRole = 'admin' | 'participant';
 export type InviteStatus = 'pending' | 'accepted' | 'expired' | 'revoked';
 export type SessionType = 'firebase' | 'guest' | 'shared';
 
-// Backwards compatibility aliases
-export type CornerRole = LocketRole;
-
 // Firebase User interface (from Firebase Auth)
 export interface FirebaseUser {
   uid: string;
@@ -16,7 +13,7 @@ export interface FirebaseUser {
   emailVerified: boolean;
 }
 
-// Locket (couple's private space) - formerly "Corner"
+// Locket (couple's private space)
 export interface Locket {
   id: string;
   name: string;
@@ -44,9 +41,6 @@ export interface Locket {
   user_role?: LocketRole;
 }
 
-// Backwards compatibility alias
-export type Corner = Locket;
-
 export interface CreateLocket {
   name: string;
   description?: string;
@@ -58,9 +52,6 @@ export interface CreateLocket {
   location_origin?: string;
 }
 
-// Backwards compatibility alias
-export type CreateCorner = CreateLocket;
-
 export interface UpdateLocket {
   name?: string;
   description?: string;
@@ -71,9 +62,6 @@ export interface UpdateLocket {
   location_origin?: string | null;
   pinned_memory_id?: string | null;
 }
-
-// Backwards compatibility alias
-export type UpdateCorner = UpdateLocket;
 
 // Locket Users (many-to-many relationship)
 export interface LocketUser {
@@ -94,9 +82,6 @@ export interface LocketUser {
   locket?: Locket;
 }
 
-// Backwards compatibility alias
-export type CornerUser = LocketUser;
-
 export interface CreateLocketUser {
   locket_id: string;
   firebase_uid: string;
@@ -109,9 +94,6 @@ export interface CreateLocketUser {
   can_manage_locket?: boolean;
 }
 
-// Backwards compatibility alias
-export type CreateCornerUser = CreateLocketUser;
-
 export interface UpdateLocketUser {
   role?: LocketRole;
   can_upload?: boolean;
@@ -120,9 +102,6 @@ export interface UpdateLocketUser {
   display_name?: string;
   avatar_url?: string;
 }
-
-// Backwards compatibility alias
-export type UpdateCornerUser = UpdateLocketUser;
 
 // Locket Invites
 export interface LocketInvite {
@@ -145,9 +124,6 @@ export interface LocketInvite {
   invited_by?: LocketUser;
 }
 
-// Backwards compatibility alias
-export type CornerInvite = LocketInvite;
-
 export interface CreateLocketInvite {
   locket_id: string;
   email: string;
@@ -159,16 +135,10 @@ export interface CreateLocketInvite {
   expires_at?: Date;
 }
 
-// Backwards compatibility alias
-export type CreateCornerInvite = CreateLocketInvite;
-
 export interface UpdateLocketInvite {
   status?: InviteStatus;
   accepted_at?: Date;
 }
-
-// Backwards compatibility alias
-export type UpdateCornerInvite = UpdateLocketInvite;
 
 // Memory Groups - A collection of related memories (e.g., a trip, an event)
 export interface MemoryGroup {
@@ -331,9 +301,6 @@ export interface LocketAnalytics {
   created_at: Date;
 }
 
-// Backwards compatibility alias
-export type CornerAnalytics = LocketAnalytics;
-
 export interface CreateLocketAnalytics {
   locket_id: string;
   event_type: string;
@@ -342,9 +309,6 @@ export interface CreateLocketAnalytics {
   ip_address?: string;
   user_agent?: string;
 }
-
-// Backwards compatibility alias
-export type CreateCornerAnalytics = CreateLocketAnalytics;
 
 // Shared Access Tokens
 export interface SharedAccessToken {
@@ -413,9 +377,6 @@ export interface LocketFilters {
   created_before?: Date;
 }
 
-// Backwards compatibility alias
-export type CornerFilters = LocketFilters;
-
 export interface MediaFilters {
   locket_id?: string;
   memory_group_id?: string;
@@ -483,9 +444,6 @@ export interface LocketContextType {
   clearError: () => void;
 }
 
-// Backwards compatibility alias
-export type CornerContextType = LocketContextType;
-
 // Sharing types
 export interface ShareableLink {
   url: string;
@@ -522,9 +480,6 @@ export interface LocketStats {
   recent_activity_count: number;
   creation_date: Date;
 }
-
-// Backwards compatibility alias
-export type CornerStats = LocketStats;
 
 // Error types
 export interface AppError {
@@ -597,6 +552,14 @@ export interface CreateLocketCover {
   storage_key?: string;
   sort_order?: number;
   added_by_firebase_uid: string;
+}
+
+// Google Places autocomplete suggestion
+export interface PlaceSuggestion {
+  placeId: string;
+  name: string;
+  description: string;
+  fullText: string;
 }
 
 // Spotlight Memory Response for "On This Day" feature

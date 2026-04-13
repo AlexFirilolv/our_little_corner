@@ -310,9 +310,6 @@ export function LocketProvider({ children }: LocketProviderProps) {
   );
 }
 
-// Backwards compatibility alias
-export const CornerProvider = LocketProvider;
-
 export function useLocket(): LocketContextType {
   const context = useContext(LocketContext);
   if (context === undefined) {
@@ -320,9 +317,6 @@ export function useLocket(): LocketContextType {
   }
   return context;
 }
-
-// Backwards compatibility alias
-export const useCorner = useLocket;
 
 // Helper function to get current user token
 async function getCurrentUserToken(): Promise<string> {

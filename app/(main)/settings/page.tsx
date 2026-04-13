@@ -6,13 +6,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useLocket } from '@/contexts/LocketContext'
 import { ArrowLeft, Loader2, Camera, User, CalendarDays, MapPin, Edit3, Save, ZoomOut, ZoomIn, Move, LogOut, ChevronLeft, ChevronRight, Heart, AlertCircle, CheckCircle } from 'lucide-react'
 import { format, startOfMonth, startOfWeek, endOfMonth, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, getYear, setYear, addMonths, subMonths } from 'date-fns'
+import type { PlaceSuggestion } from '@/lib/types'
 
-interface PlaceSuggestion {
-    placeId: string
-    name: string
-    description: string
-    fullText: string
-}
 
 export default function SettingsPage() {
     const router = useRouter()

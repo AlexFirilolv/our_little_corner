@@ -75,8 +75,7 @@ app/
 └── components/ui/       # Shadcn UI components
 
 database/
-├── multi-tenant-schema.sql
-└── migrations/
+└── multi-tenant-schema.sql  # Reference schema (runtime migrations live in app/lib/db/)
 ```
 
 ### Key Concepts

@@ -4,13 +4,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Loader2, Calendar, MapPin, Trash2, Plus, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLocket } from '@/contexts/LocketContext';
+import type { PlaceSuggestion } from '@/lib/types'
 
-interface PlaceSuggestion {
-  placeId: string;
-  name: string;
-  description: string;
-  fullText: string;
-}
 
 interface MediaItem {
   id: string;

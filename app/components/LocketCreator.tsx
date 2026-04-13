@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocket } from '../contexts/LocketContext'
 import { useAuth } from '../contexts/AuthContext'
-import { Loader2, ArrowLeft, ArrowRight, Check, Move, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, CalendarDays, Heart, User, MapPin, ImagePlus, Mail, Link2, Copy, CheckCircle, AlertCircle } from 'lucide-react'
+import { Loader2, ArrowLeft, ArrowRight, Check, Move, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, CalendarDays, Heart, User, MapPin, ImagePlus, Mail, AlertCircle } from 'lucide-react'
 import {
   startOfMonth,
   endOfMonth,
@@ -19,24 +19,12 @@ import {
   getYear,
   setYear,
 } from 'date-fns'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import InviteLinkModal from './InviteLinkModal'
+import type { PlaceSuggestion } from '@/lib/types'
 
 const TOTAL_STEPS = 4
 
-interface PlaceSuggestion {
-  placeId: string
-  name: string
-  description: string
-  fullText: string
-}
 
 export default function LocketCreator() {
   const { user, updateProfile } = useAuth()
@@ -92,7 +80,6 @@ export default function LocketCreator() {
   // Invite modal state
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [inviteLink, setInviteLink] = useState('')
-  const [copied, setCopied] = useState(false)
 
   // Step navigation
   const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, TOTAL_STEPS))
@@ -379,16 +366,6 @@ export default function LocketCreator() {
     } catch (error) {
       console.error('File upload failed:', error)
       return null
-    }
-  }
-
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(inviteLink)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch (err) {
-      console.error('Failed to copy:', err)
     }
   }
 
@@ -995,43 +972,12 @@ export default function LocketCreator() {
         </div>
       </div>
 
-      <Dialog open={showInviteModal} onOpenChange={setShowInviteModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Link2 className="w-5 h-5 text-accent" />
-              Share Your Locket
-            </DialogTitle>
-            <DialogDescription>
-              Send this link to your partner so they can join your locket.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="mt-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="flex-1 min-w-0 bg-background border border-border rounded-lg px-4 py-3">
-                <p className="text-body-sm text-foreground truncate font-mono">{inviteLink}</p>
-              </div>
-              <Button
-                type="button"
-                onClick={handleCopyLink}
-                variant="outline"
-                size="icon"
-              >
-                {copied ? (
-                  <CheckCircle className="w-4 h-4 text-secondary" />
-                ) : (
-                  <Copy className="w-4 h-4" />
-                )}
-              </Button>
-            </div>
-          </div>
-          <DialogFooter className="mt-4">
-            <Button onClick={handleCloseModal} className="w-full">
-              Continue to Locket
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <InviteLinkModal
+        open={showInviteModal}
+        onOpenChange={setShowInviteModal}
+        inviteLink={inviteLink}
+        onClose={handleCloseModal}
+      />
     </div>
   )
 }
