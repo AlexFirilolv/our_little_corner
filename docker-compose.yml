@@ -57,7 +57,8 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data/pgdata
-      - ./database/multi-tenant-schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./database/init-test-db.sql:/docker-entrypoint-initdb.d/00-init-test-db.sql:ro
+      - ./database/multi-tenant-schema.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB}"]
       interval: 10s
