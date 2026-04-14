@@ -41,7 +41,7 @@ export async function createCouple(): Promise<TestCouple> {
 
   await query(
     `INSERT INTO locket_users (locket_id, firebase_uid, email, role)
-     VALUES ($1, $2, $3, 'participant'), ($1, $4, $5, 'participant')`,
+     VALUES ($1, $2, $3, 'admin'), ($1, $4, $5, 'participant')`,
     [locketId, partnerA.uid, partnerA.email, partnerB.uid, partnerB.email],
   )
 
