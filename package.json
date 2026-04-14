@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "dotenv -e .env.test -e .env.test.local -- vitest run",
+    "test:watch": "dotenv -e .env.test -e .env.test.local -- vitest"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.18.0",
