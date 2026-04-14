@@ -58,3 +58,6 @@ terraform.tfstate*
 CLAUDE.md
 
 temp
+
+# git worktrees
+worktrees/
