@@ -123,6 +123,32 @@ npm run lint     # ESLint
 
 **Fonts**: Playfair Display (headings), Lato (body)
 
+## Testing
+
+Automated endpoint tests run against a dedicated `twofold_test` database and a
+running Next server, using ephemeral Firebase users via the Admin SDK.
+
+### One-time local setup
+
+1. `cp .env.test.local.example .env.test.local` and fill in Firebase credentials
+   (same values as your normal local `.env.local`).
+2. Ensure Postgres is running: `docker compose up -d db`. The `twofold_test`
+   database is created automatically on first boot of a fresh volume.
+3. In one terminal, start the app against the test DB:
+   ```bash
+   dotenv -e .env.test -e .env.test.local -- npm run dev
+   ```
+
+### Running tests
+
+```bash
+npm test            # one-shot
+npm run test:watch  # watch mode
+```
+
+The first run wipes `twofold_test`'s `public` schema and reapplies
+`database/multi-tenant-schema.sql` + `database/migrations/*.sql`.
+
 ---
 
 *Built with love for preserving memories together*
