@@ -38,6 +38,7 @@ jobs:
       NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
       JWT_SECRET: test-jwt-secret
       NEXTAUTH_SECRET: test-nextauth-secret
+      INSECURE_COOKIES: 'true'
 
     steps:
       - uses: actions/checkout@v4

@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     // Set locket-id cookie for middleware
     response.cookies.set('locket-id', locket.id, {
       httpOnly: false, // Allow client-side access if needed (though middleware handles it)
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV === 'production' && process.env.INSECURE_COOKIES !== 'true',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60, // 7 days
       path: '/',

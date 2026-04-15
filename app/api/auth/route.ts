@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     // Set the cookie on the response
     response.cookies.set('firebase-session', sessionCookie, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV === 'production' && process.env.INSECURE_COOKIES !== 'true',
       sameSite: 'lax',
       maxAge: expiresIn / 1000, // Convert to seconds
       path: '/',
@@ -109,7 +109,7 @@ export async function DELETE(request: NextRequest) {
     // Clear all possible session cookies
     const cookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV === 'production' && process.env.INSECURE_COOKIES !== 'true',
       sameSite: 'lax' as const,
       maxAge: 0,
       path: '/',

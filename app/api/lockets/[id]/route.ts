@@ -41,7 +41,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // Update locket-id cookie to reflect current selection/access
     response.cookies.set('locket-id', locket.id, {
       httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV === 'production' && process.env.INSECURE_COOKIES !== 'true',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60, // 7 days
       path: '/',

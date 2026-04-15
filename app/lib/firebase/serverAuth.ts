@@ -93,7 +93,7 @@ export async function createSessionCookie(idToken: string): Promise<string> {
       name: SESSION_COOKIE_NAME,
       value: sessionCookie,
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV === 'production' && process.env.INSECURE_COOKIES !== 'true',
       sameSite: 'lax',
       maxAge: expiresIn / 1000, // Convert to seconds
       path: '/',
@@ -116,7 +116,7 @@ export function clearSessionCookie(): void {
     name: SESSION_COOKIE_NAME,
     value: '',
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.NODE_ENV === 'production' && process.env.INSECURE_COOKIES !== 'true',
     sameSite: 'lax',
     maxAge: 0,
     path: '/',

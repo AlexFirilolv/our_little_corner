@@ -112,7 +112,7 @@ export function setSessionCookie(token: string): void {
   
   cookieStore.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.NODE_ENV === 'production' && process.env.INSECURE_COOKIES !== 'true',
     sameSite: 'lax',
     maxAge: SESSION_DURATION / 1000, // Convert to seconds
     path: '/',
@@ -127,7 +127,7 @@ export function clearSessionCookie(): void {
   
   cookieStore.set(SESSION_COOKIE_NAME, '', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.NODE_ENV === 'production' && process.env.INSECURE_COOKIES !== 'true',
     sameSite: 'lax',
     maxAge: 0,
     path: '/',
