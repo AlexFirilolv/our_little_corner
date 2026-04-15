@@ -1,15 +1,12 @@
 name: Build and Push Image
 
 on:
+  workflow_run:
+    workflows: ["tests"]
+    types: [completed]
+    branches: [main]
   push:
-    branches: [ "main" ]
-    # ADD THIS: Trigger on version tags
     tags: [ 'v*.*.*' ]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'k8s/**'
-  
   workflow_dispatch:
 
 env:
@@ -19,6 +16,7 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: read
       packages: write
