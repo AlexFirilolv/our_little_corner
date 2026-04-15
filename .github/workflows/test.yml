@@ -3,6 +3,10 @@ name: tests
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'k8s/**'
   pull_request:
 
 jobs:
