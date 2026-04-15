@@ -55,10 +55,13 @@ export async function destroyCouple(couple: TestCouple): Promise<void> {
   } catch (e) {
     errors.push(e)
   }
-  try {
-    await adminAuth().deleteUsers([couple.partnerA.uid, couple.partnerB.uid])
-  } catch (e) {
-    errors.push(e)
+  for (const uid of [couple.partnerA.uid, couple.partnerB.uid]) {
+    try {
+      await adminAuth().deleteUser(uid)
+    } catch (e) {
+      errors.push(e)
+    }
+    await new Promise((r) => setTimeout(r, 150))
   }
   if (errors.length) console.error('destroyCouple errors:', errors)
 }
