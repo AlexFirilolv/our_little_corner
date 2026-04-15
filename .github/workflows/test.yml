@@ -54,7 +54,7 @@ jobs:
 
       - name: Start Next server
         run: |
-          npm start &
+          npm start > next.log 2>&1 &
           echo $! > next.pid
           for i in {1..30}; do
             if curl -sf http://localhost:3000/api/auth > /dev/null; then
@@ -62,10 +62,16 @@ jobs:
             fi
             sleep 1
           done
-          echo "Server did not come up"; exit 1
+          echo "Server did not come up"
+          cat next.log
+          exit 1
 
       - name: Run tests
         run: npm test
+
+      - name: Dump Next server log
+        if: always()
+        run: cat next.log || true
 
       - name: Stop Next server
         if: always()
