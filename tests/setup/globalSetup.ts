@@ -32,6 +32,12 @@ export default async function globalSetup() {
     }
   }
 
+  // Apply in-app runtime migrations defined in app/lib/migrations.ts
+  const { migrations: appMigrations } = await import('../../app/lib/migrations')
+  for (const m of appMigrations) {
+    await pool.query(m.sql)
+  }
+
   return async () => {
     await closeTestPool()
   }

@@ -12,7 +12,7 @@ const createMigrationsTable = `
 `;
 
 // Migration definitions - all use locket naming
-const migrations = [
+export const migrations = [
   {
     name: '100_ensure_extensions',
     sql: `
