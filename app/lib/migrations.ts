@@ -434,6 +434,21 @@ const migrations = [
       COMMENT ON COLUMN lockets.next_countdown_date IS 'Date/time of the next countdown event';
     `,
   },
+  {
+    name: '200_create_gratitudes',
+    sql: `
+      CREATE TABLE IF NOT EXISTS gratitudes (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        locket_id UUID NOT NULL REFERENCES lockets(id) ON DELETE CASCADE,
+        from_uid VARCHAR(255) NOT NULL,
+        to_uid VARCHAR(255) NOT NULL,
+        text TEXT NOT NULL CHECK (length(text) BETWEEN 1 AND 280),
+        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+        seen_at TIMESTAMP WITH TIME ZONE
+      );
+      CREATE INDEX IF NOT EXISTS idx_gratitudes_locket_created ON gratitudes(locket_id, created_at DESC);
+    `,
+  },
 ];
 
 // Check if migration has been run

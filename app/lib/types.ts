@@ -568,3 +568,13 @@ export interface SpotlightMemory {
   type: 'on_this_day' | 'random' | 'none';
   years_ago?: number;
 }
+
+export interface Gratitude {
+  id: string;
+  locket_id: string;
+  from_uid: string;
+  to_uid: string;
+  text: string;
+  created_at: string;
+  seen_at: string | null;
+}
