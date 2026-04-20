@@ -7,7 +7,10 @@ export async function GET(request: NextRequest) {
     const locketId = new URL(request.url).searchParams.get('locketId') ?? ''
     await requireLocketMembership(request, locketId)
     const { rows } = await query(
-      `SELECT mg.*, COALESCE(json_agg(m.*) FILTER (WHERE m.id IS NOT NULL), '[]') AS media_items
+      `SELECT mg.id, mg.locket_id, mg.title, mg.description, mg.date_taken,
+              mg.is_milestone, mg.cover_media_id, mg.created_by_firebase_uid,
+              mg.created_at, mg.updated_at,
+              COALESCE(json_agg(m.*) FILTER (WHERE m.id IS NOT NULL), '[]') AS media_items
        FROM memory_groups mg
        LEFT JOIN media m ON m.memory_group_id = mg.id
        WHERE mg.locket_id = $1

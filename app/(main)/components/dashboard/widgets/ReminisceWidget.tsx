@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { Clock } from 'lucide-react'
 import { getCurrentUserToken } from '@/lib/firebase/auth'
 import type { MemoryGroup } from '@/lib/types'
@@ -16,7 +17,11 @@ export function ReminisceWidget({ locketId }: { locketId: string }) {
       const res = await fetch(`/api/reminisce?locketId=${locketId}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      if (!res.ok || cancelled) return
+      if (!res.ok) {
+        console.warn('Reminisce fetch failed', res.status, res.statusText)
+        return
+      }
+      if (cancelled) return
       const { memories } = await res.json()
       if (!cancelled) setMemories(memories)
     })()
@@ -38,7 +43,13 @@ export function ReminisceWidget({ locketId }: { locketId: string }) {
         aria-label={`Reminisce: ${top.title}`}
       >
         {cover && (
-          <img src={cover} alt="" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+          <Image
+            src={cover}
+            alt=""
+            fill
+            sizes="(max-width: 768px) 100vw, 33vw"
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+          />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/40 to-transparent" />
         <div className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-elevated/90 backdrop-blur-sm border border-border text-caption font-bold text-accent">
