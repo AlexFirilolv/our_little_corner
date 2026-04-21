@@ -18,12 +18,17 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     if (!status || !['saved', 'completed', 'dismissed'].includes(status)) {
       return Response.json({ error: 'invalid_status' }, { status: 400 })
     }
-    const completedAt = status === 'completed' ? 'NOW()' : 'NULL'
     const { rows } = await query(
-      `UPDATE date_night_picks SET status = $1, completed_at = ${completedAt}
-       WHERE id = $2 AND locket_id = $3 RETURNING *`,
+      `UPDATE date_night_picks
+       SET status = $1::text,
+           completed_at = CASE WHEN $1::text = 'completed' THEN NOW() ELSE NULL END
+       WHERE id = $2 AND locket_id = $3
+       RETURNING *`,
       [status, params.id, locketId],
     )
+    if (rows.length === 0) {
+      return Response.json({ error: 'not_found' }, { status: 404 })
+    }
     return Response.json({ pick: rows[0] })
   } catch (err) { return authErrorResponse(err) }
 }
@@ -32,7 +37,13 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   try {
     const locketId = new URL(request.url).searchParams.get('locketId') ?? ''
     await requireLocketMembership(request, locketId)
-    await query(`DELETE FROM date_night_picks WHERE id = $1 AND locket_id = $2`, [params.id, locketId])
+    const { rows } = await query(
+      `DELETE FROM date_night_picks WHERE id = $1 AND locket_id = $2 RETURNING id`,
+      [params.id, locketId],
+    )
+    if (rows.length === 0) {
+      return Response.json({ error: 'not_found' }, { status: 404 })
+    }
     return Response.json({ ok: true })
   } catch (err) { return authErrorResponse(err) }
 }

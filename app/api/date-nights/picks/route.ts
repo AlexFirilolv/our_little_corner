@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { query } from '@/lib/db'
 import { requireLocketMembership, authErrorResponse } from '@/lib/auth-helpers'
+import { dateIdeas } from '@/lib/data/date-night-ideas'
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,6 +30,9 @@ export async function POST(request: NextRequest) {
     const { uid } = await requireLocketMembership(request, locketId ?? '')
     if (typeof idea_id !== 'string' || idea_id.length < 1) {
       return Response.json({ error: 'invalid_idea_id' }, { status: 400 })
+    }
+    if (!dateIdeas.some((i) => i.id === idea_id)) {
+      return Response.json({ error: 'unknown_idea' }, { status: 400 })
     }
     const { rows } = await query(
       `INSERT INTO date_night_picks (locket_id, idea_id, status, created_by) VALUES ($1, $2, 'saved', $3) RETURNING *`,

@@ -46,6 +46,29 @@ describe('/api/date-nights', () => {
     expect(reverted.completed_at).toBeNull()
   })
 
+  it('PATCH with bogus id returns 404', async () => {
+    const c = new TestClient()
+    const bogusId = '00000000-0000-0000-0000-000000000000'
+    const res = await c.fetch(`/api/date-nights/picks/${bogusId}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', ...(await headers(couple.partnerA)) },
+      body: JSON.stringify({ locketId: couple.locketId, status: 'completed' }),
+    })
+    expect(res.status).toBe(404)
+    expect((await res.json()).error).toBe('not_found')
+  })
+
+  it('POST with unknown idea_id returns 400', async () => {
+    const c = new TestClient()
+    const res = await c.fetch('/api/date-nights/picks', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...(await headers(couple.partnerA)) },
+      body: JSON.stringify({ locketId: couple.locketId, idea_id: 'not-a-real-idea' }),
+    })
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toBe('unknown_idea')
+  })
+
   it('GET picks enforces tenant isolation', async () => {
     const otherCouple = await createCouple()
     try {
