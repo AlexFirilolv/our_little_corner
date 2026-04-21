@@ -588,3 +588,17 @@ export interface DateNightPick {
   picked_at: string;
   completed_at: string | null;
 }
+
+export interface WishlistItem {
+  id: string;
+  locket_id: string;
+  added_by: string;
+  for_uid: string | null;
+  title: string;
+  url: string | null;
+  price_cents: number | null;
+  notes: string | null;
+  status: 'open' | 'reserved' | 'gifted' | 'removed';
+  reserved_by: string | null;
+  created_at: string;
+}

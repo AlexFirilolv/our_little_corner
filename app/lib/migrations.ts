@@ -464,6 +464,25 @@ export const migrations = [
       CREATE INDEX IF NOT EXISTS idx_date_picks_locket_status ON date_night_picks(locket_id, status, picked_at DESC);
     `,
   },
+  {
+    name: '202_create_wishlist_items',
+    sql: `
+      CREATE TABLE IF NOT EXISTS wishlist_items (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        locket_id UUID NOT NULL REFERENCES lockets(id) ON DELETE CASCADE,
+        added_by VARCHAR(255) NOT NULL,
+        for_uid VARCHAR(255),
+        title TEXT NOT NULL,
+        url TEXT,
+        price_cents INT CHECK (price_cents IS NULL OR price_cents >= 0),
+        notes TEXT,
+        status VARCHAR(20) NOT NULL CHECK (status IN ('open','reserved','gifted','removed')) DEFAULT 'open',
+        reserved_by VARCHAR(255),
+        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_wishlist_locket_status ON wishlist_items(locket_id, status);
+    `,
+  },
 ];
 
 // Check if migration has been run
