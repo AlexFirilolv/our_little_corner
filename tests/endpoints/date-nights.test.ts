@@ -31,6 +31,31 @@ describe('/api/date-nights', () => {
       body: JSON.stringify({ locketId: couple.locketId, status: 'completed' }),
     })
     expect(patch.status).toBe(200)
-    expect((await patch.json()).pick.status).toBe('completed')
+    const patched = (await patch.json()).pick
+    expect(patched.status).toBe('completed')
+    expect(patched.completed_at).not.toBeNull()
+
+    const revert = await c.fetch(`/api/date-nights/picks/${pick.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', ...(await headers(couple.partnerA)) },
+      body: JSON.stringify({ locketId: couple.locketId, status: 'saved' }),
+    })
+    expect(revert.status).toBe(200)
+    const reverted = (await revert.json()).pick
+    expect(reverted.status).toBe('saved')
+    expect(reverted.completed_at).toBeNull()
+  })
+
+  it('GET picks enforces tenant isolation', async () => {
+    const otherCouple = await createCouple()
+    try {
+      const c = new TestClient()
+      const res = await c.fetch(`/api/date-nights/picks?locketId=${couple.locketId}`, {
+        headers: await headers(otherCouple.partnerA),
+      })
+      expect(res.status).toBe(403)
+    } finally {
+      await destroyCouple(otherCouple)
+    }
   })
 })

@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     const locketId = new URL(request.url).searchParams.get('locketId') ?? ''
     await requireLocketMembership(request, locketId)
     const { rows } = await query(
-      `SELECT * FROM date_night_picks WHERE locket_id = $1 ORDER BY picked_at DESC LIMIT 50`,
+      `SELECT * FROM date_night_picks WHERE locket_id = $1 AND status IN ('saved','completed') ORDER BY picked_at DESC LIMIT 50`,
       [locketId],
     )
     return Response.json({ picks: rows })
