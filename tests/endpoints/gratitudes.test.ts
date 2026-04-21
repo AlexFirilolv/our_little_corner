@@ -23,6 +23,17 @@ describe('/api/gratitudes', () => {
     expect(body.gratitude.to_uid).toBe(couple.partnerB.uid)
   })
 
+  it('POST rejects whitespace-only text with 400', async () => {
+    const c = new TestClient()
+    const res = await c.fetch('/api/gratitudes', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...(await auth(couple.partnerA)) },
+      body: JSON.stringify({ locketId: couple.locketId, text: '   ' }),
+    })
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toBe('invalid_text')
+  })
+
   it('POST without partner returns 400 no_partner', async () => {
     const { query } = await import('../helpers/db')
     await query(`DELETE FROM locket_users WHERE locket_id=$1 AND firebase_uid=$2`, [couple.locketId, couple.partnerB.uid])
