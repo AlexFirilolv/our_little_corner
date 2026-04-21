@@ -449,6 +449,21 @@ export const migrations = [
       CREATE INDEX IF NOT EXISTS idx_gratitudes_locket_created ON gratitudes(locket_id, created_at DESC);
     `,
   },
+  {
+    name: '201_create_date_night_picks',
+    sql: `
+      CREATE TABLE IF NOT EXISTS date_night_picks (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        locket_id UUID NOT NULL REFERENCES lockets(id) ON DELETE CASCADE,
+        idea_id VARCHAR(100) NOT NULL,
+        status VARCHAR(20) NOT NULL CHECK (status IN ('saved','completed','dismissed')),
+        created_by VARCHAR(255) NOT NULL,
+        picked_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+        completed_at TIMESTAMP WITH TIME ZONE
+      );
+      CREATE INDEX IF NOT EXISTS idx_date_picks_locket_status ON date_night_picks(locket_id, status, picked_at DESC);
+    `,
+  },
 ];
 
 // Check if migration has been run

@@ -578,3 +578,13 @@ export interface Gratitude {
   created_at: string;
   seen_at: string | null;
 }
+
+export interface DateNightPick {
+  id: string;
+  locket_id: string;
+  idea_id: string;
+  status: 'saved' | 'completed' | 'dismissed';
+  created_by: string;
+  picked_at: string;
+  completed_at: string | null;
+}
