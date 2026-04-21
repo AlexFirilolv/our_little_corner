@@ -483,6 +483,24 @@ export const migrations = [
       CREATE INDEX IF NOT EXISTS idx_wishlist_locket_status ON wishlist_items(locket_id, status);
     `,
   },
+  {
+    name: '203_create_chores',
+    sql: `
+      CREATE TABLE IF NOT EXISTS chores (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        locket_id UUID NOT NULL REFERENCES lockets(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        cadence_days INT NOT NULL CHECK (cadence_days > 0),
+        assigned_to VARCHAR(255),
+        last_done_by VARCHAR(255),
+        last_done_at TIMESTAMP WITH TIME ZONE,
+        next_due_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        streak INT NOT NULL DEFAULT 0,
+        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_chores_locket_due ON chores(locket_id, next_due_at);
+    `,
+  },
 ];
 
 // Check if migration has been run

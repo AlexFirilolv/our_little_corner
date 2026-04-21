@@ -589,6 +589,19 @@ export interface DateNightPick {
   completed_at: string | null;
 }
 
+export interface Chore {
+  id: string;
+  locket_id: string;
+  name: string;
+  cadence_days: number;
+  assigned_to: string | null;
+  last_done_by: string | null;
+  last_done_at: string | null;
+  next_due_at: string;
+  streak: number;
+  created_at: string;
+}
+
 export interface WishlistItem {
   id: string;
   locket_id: string;
