@@ -16,11 +16,14 @@ export function DocumentsExpiring({ locketId }: { locketId: string }) {
       })
       if (!res.ok) return
       const { documents } = (await res.json()) as { documents: DocumentRecord[] }
-      const cutoff = Date.now() + 30 * 24 * 3600 * 1000
+      const now = Date.now()
+      const cutoff = now + 30 * 24 * 3600 * 1000
       setExpiring(
-        documents.filter(
-          (d) => d.expiry_date && new Date(d.expiry_date).getTime() <= cutoff,
-        ),
+        documents.filter((d) => {
+          if (!d.expiry_date) return false
+          const t = new Date(d.expiry_date).getTime()
+          return t >= now && t <= cutoff
+        }),
       )
     })()
   }, [locketId])

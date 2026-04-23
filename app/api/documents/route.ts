@@ -55,6 +55,9 @@ export async function POST(request: NextRequest) {
     if (!gcs_key || typeof gcs_key !== 'string') {
       return Response.json({ error: 'gcs_key_required' }, { status: 400 })
     }
+    if (!gcs_key.startsWith(`lockets/${locketId}/documents/`)) {
+      return Response.json({ error: 'invalid_gcs_key' }, { status: 400 })
+    }
     const cat = (validCategories as readonly string[]).includes(category ?? '')
       ? (category as string)
       : 'other'

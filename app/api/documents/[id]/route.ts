@@ -44,6 +44,13 @@ export async function PATCH(
       return Response.json({ error: 'invalid_category' }, { status: 400 })
     }
 
+    if (
+      body.name !== undefined &&
+      (typeof body.name !== 'string' || body.name.trim().length === 0)
+    ) {
+      return Response.json({ error: 'name_required' }, { status: 400 })
+    }
+
     const updates: string[] = []
     const values: unknown[] = []
     if ('name' in body) {

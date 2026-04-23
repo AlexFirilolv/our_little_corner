@@ -197,6 +197,43 @@ describe('/api/documents', () => {
     }
   })
 
+  it('POST with foreign-tenant gcs_key prefix returns 400 invalid_gcs_key', async () => {
+    const other = await createCouple()
+    try {
+      const c = new TestClient()
+      const res = await c.fetch('/api/documents', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...(await h(couple.partnerA)) },
+        body: JSON.stringify({
+          locketId: couple.locketId,
+          name: 'Foreign.pdf',
+          gcs_key: `lockets/${other.locketId}/documents/foreign`,
+        }),
+      })
+      expect(res.status).toBe(400)
+      expect((await res.json()).error).toBe('invalid_gcs_key')
+    } finally {
+      await destroyCouple(other)
+    }
+  })
+
+  it('PATCH with empty name returns 400', async () => {
+    const { rows } = await query<{ id: string }>(
+      `INSERT INTO documents (locket_id, name, category, gcs_key, added_by)
+       VALUES ($1, 'Orig.pdf', 'other', $2, $3) RETURNING id`,
+      [couple.locketId, `lockets/${couple.locketId}/documents/orig`, couple.partnerA.uid],
+    )
+    const id = rows[0].id
+    const c = new TestClient()
+    const res = await c.fetch(`/api/documents/${id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', ...(await h(couple.partnerA)) },
+      body: JSON.stringify({ locketId: couple.locketId, name: '   ' }),
+    })
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toBe('name_required')
+  })
+
   it('expiring filter: widget query returns only docs expiring within 30 days', async () => {
     const soon = new Date(Date.now() + 10 * 24 * 3600 * 1000).toISOString().slice(0, 10)
     const far = new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().slice(0, 10)
