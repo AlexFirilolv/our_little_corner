@@ -501,6 +501,25 @@ export const migrations = [
       CREATE INDEX IF NOT EXISTS idx_chores_locket_due ON chores(locket_id, next_due_at);
     `,
   },
+  {
+    name: '204_create_documents',
+    sql: `
+      CREATE TABLE IF NOT EXISTS documents (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        locket_id UUID NOT NULL REFERENCES lockets(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        category VARCHAR(20) NOT NULL CHECK (category IN ('id','insurance','medical','vehicle','property','financial','pet','other')) DEFAULT 'other',
+        gcs_key TEXT NOT NULL,
+        file_type VARCHAR(100),
+        size_bytes BIGINT,
+        expiry_date DATE,
+        notes TEXT,
+        added_by VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_documents_locket_expiry ON documents(locket_id, expiry_date);
+    `,
+  },
 ];
 
 // Check if migration has been run

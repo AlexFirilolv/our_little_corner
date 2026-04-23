@@ -602,6 +602,30 @@ export interface Chore {
   created_at: string;
 }
 
+export type DocumentCategory =
+  | 'id'
+  | 'insurance'
+  | 'medical'
+  | 'vehicle'
+  | 'property'
+  | 'financial'
+  | 'pet'
+  | 'other';
+
+export interface DocumentRecord {
+  id: string;
+  locket_id: string;
+  name: string;
+  category: DocumentCategory;
+  gcs_key: string;
+  file_type: string | null;
+  size_bytes: number | null;
+  expiry_date: string | null;
+  notes: string | null;
+  added_by: string;
+  created_at: string;
+}
+
 export interface WishlistItem {
   id: string;
   locket_id: string;
