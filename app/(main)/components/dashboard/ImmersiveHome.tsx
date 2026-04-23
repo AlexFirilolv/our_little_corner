@@ -6,6 +6,13 @@ import { Heart, Settings } from 'lucide-react';
 import { SpotlightCard } from './SpotlightCard';
 import { PinnedNote } from './PinnedNote';
 import { BucketListWidget } from './widgets/BucketListWidget';
+import { ReminisceWidget } from './widgets/ReminisceWidget';
+import { GratitudeWidget } from './widgets/GratitudeWidget';
+import { DateNightWidget } from './widgets/DateNightWidget';
+import { WishlistPeek } from './widgets/WishlistPeek';
+import { ChoresUpNext } from './widgets/ChoresUpNext';
+import { DocumentsExpiring } from './widgets/DocumentsExpiring';
+import { GroceryQuickAdd } from './widgets/GroceryQuickAdd';
 import { CountdownWidget } from '@/(main)/profile/components/CountdownWidget';
 import { EditMemoryModal } from '@/(main)/timeline/components/EditMemoryModal';
 import { CommentsPanel } from '@/(main)/timeline/components/CommentsPanel';
@@ -145,6 +152,11 @@ export function ImmersiveHome({ locket, user }: ImmersiveHomeProps) {
           </div>
         )}
 
+        {/* Reminisce */}
+        <div className="mb-6 animate-fade-in">
+          <ReminisceWidget locketId={locket.id} />
+        </div>
+
         {/* Pinned Note */}
         <div className="flex items-start justify-center py-4 mb-6 animate-fade-in">
           <PinnedNote
@@ -158,8 +170,18 @@ export function ImmersiveHome({ locket, user }: ImmersiveHomeProps) {
           <SpotlightCard locketId={locket.id} onViewMemory={handleViewMemory} />
         </div>
 
-        {/* Widget Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 animate-fade-in">
+        {/* Gratitude */}
+        <div className="mb-6 animate-fade-in">
+          <GratitudeWidget locketId={locket.id} currentUid={user.uid} />
+        </div>
+
+        {/* Date Night */}
+        <div className="mb-6 animate-fade-in">
+          <DateNightWidget locketId={locket.id} />
+        </div>
+
+        {/* Countdown */}
+        <div className="mb-6 animate-fade-in">
           {targetDate ? (
             <CountdownWidget targetDate={targetDate} title={countdownTitle} />
           ) : (
@@ -176,7 +198,19 @@ export function ImmersiveHome({ locket, user }: ImmersiveHomeProps) {
               </Link>
             </div>
           )}
+        </div>
+
+        {/* Bucket List */}
+        <div className="mb-6 animate-fade-in">
           <BucketListWidget locketId={locket.id} />
+        </div>
+
+        {/* Together widget grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 animate-fade-in">
+          <WishlistPeek locketId={locket.id} />
+          <ChoresUpNext locketId={locket.id} />
+          <DocumentsExpiring locketId={locket.id} />
+          <GroceryQuickAdd locketId={locket.id} />
         </div>
       </div>
 
