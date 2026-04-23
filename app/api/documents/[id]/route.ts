@@ -45,10 +45,10 @@ export async function PATCH(
     }
 
     if (
-      body.name !== undefined &&
+      'name' in body &&
       (typeof body.name !== 'string' || body.name.trim().length === 0)
     ) {
-      return Response.json({ error: 'name_required' }, { status: 400 })
+      return Response.json({ error: 'invalid_name' }, { status: 400 })
     }
 
     const updates: string[] = []

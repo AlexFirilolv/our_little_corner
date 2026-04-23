@@ -231,7 +231,24 @@ describe('/api/documents', () => {
       body: JSON.stringify({ locketId: couple.locketId, name: '   ' }),
     })
     expect(res.status).toBe(400)
-    expect((await res.json()).error).toBe('name_required')
+    expect((await res.json()).error).toBe('invalid_name')
+  })
+
+  it('PATCH with null name returns 400 invalid_name', async () => {
+    const { rows } = await query<{ id: string }>(
+      `INSERT INTO documents (locket_id, name, category, gcs_key, added_by)
+       VALUES ($1, 'Orig.pdf', 'other', $2, $3) RETURNING id`,
+      [couple.locketId, `lockets/${couple.locketId}/documents/orig2`, couple.partnerA.uid],
+    )
+    const id = rows[0].id
+    const c = new TestClient()
+    const res = await c.fetch(`/api/documents/${id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', ...(await h(couple.partnerA)) },
+      body: JSON.stringify({ locketId: couple.locketId, name: null }),
+    })
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toBe('invalid_name')
   })
 
   it('expiring filter: widget query returns only docs expiring within 30 days', async () => {

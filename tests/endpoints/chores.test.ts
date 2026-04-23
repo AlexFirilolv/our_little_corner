@@ -226,4 +226,21 @@ describe('/api/chores', () => {
       await destroyCouple(otherCouple)
     }
   })
+
+  it('PATCH with foreign assigned_to returns 400 invalid_assignee', async () => {
+    const c = new TestClient()
+    const create = await c.fetch('/api/chores', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...(await h(couple.partnerA)) },
+      body: JSON.stringify({ locketId: couple.locketId, name: 'Dishes', cadence_days: 1 }),
+    })
+    const { chore } = await create.json()
+    const res = await c.fetch(`/api/chores/${chore.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', ...(await h(couple.partnerA)) },
+      body: JSON.stringify({ locketId: couple.locketId, assigned_to: 'random-uid' }),
+    })
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toBe('invalid_assignee')
+  })
 })

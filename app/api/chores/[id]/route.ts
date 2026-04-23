@@ -20,7 +20,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
   try {
     const locketId = typeof body.locketId === 'string' ? body.locketId : ''
-    await requireLocketMembership(request, locketId)
+    const { uid, partnerUid } = await requireLocketMembership(request, locketId)
+
+    if ('assigned_to' in body) {
+      const a = body.assigned_to
+      if (a !== null && a !== undefined && a !== uid && a !== partnerUid) {
+        return Response.json({ error: 'invalid_assignee' }, { status: 400 })
+      }
+    }
 
     if (body.cadence_days !== undefined && body.cadence_days !== null) {
       if (

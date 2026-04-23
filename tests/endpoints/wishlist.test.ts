@@ -183,5 +183,54 @@ describe('/api/wishlist', () => {
       const asA = await c.fetch(`/api/wishlist?locketId=${couple.locketId}`, { headers: await h(couple.partnerA) })
       expect((await asA.json()).items).toHaveLength(1)
     })
+
+    it('intended recipient cannot PATCH a partner-added surprise (404)', async () => {
+      const c = new TestClient()
+      const create = await c.fetch('/api/wishlist', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...(await h(couple.partnerA)) },
+        body: JSON.stringify({ locketId: couple.locketId, title: 'Surprise ring', for_uid: couple.partnerB.uid }),
+      })
+      const item = (await create.json()).item
+      const res = await c.fetch(`/api/wishlist/${item.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json', ...(await h(couple.partnerB)) },
+        body: JSON.stringify({ locketId: couple.locketId, status: 'gifted' }),
+      })
+      expect(res.status).toBe(404)
+      expect((await res.json()).error).toBe('not_found')
+    })
+
+    it('intended recipient cannot DELETE a partner-added surprise (404)', async () => {
+      const c = new TestClient()
+      const create = await c.fetch('/api/wishlist', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...(await h(couple.partnerA)) },
+        body: JSON.stringify({ locketId: couple.locketId, title: 'Surprise bag', for_uid: couple.partnerB.uid }),
+      })
+      const item = (await create.json()).item
+      const res = await c.fetch(`/api/wishlist/${item.id}?locketId=${couple.locketId}`, {
+        method: 'DELETE',
+        headers: await h(couple.partnerB),
+      })
+      expect(res.status).toBe(404)
+    })
+
+    it('self-added item for self is still PATCH-able by self', async () => {
+      const c = new TestClient()
+      const create = await c.fetch('/api/wishlist', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...(await h(couple.partnerA)) },
+        body: JSON.stringify({ locketId: couple.locketId, title: 'My wish', for_uid: couple.partnerA.uid }),
+      })
+      const item = (await create.json()).item
+      const res = await c.fetch(`/api/wishlist/${item.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json', ...(await h(couple.partnerA)) },
+        body: JSON.stringify({ locketId: couple.locketId, notes: 'updated' }),
+      })
+      expect(res.status).toBe(200)
+      expect((await res.json()).item.notes).toBe('updated')
+    })
   })
 })

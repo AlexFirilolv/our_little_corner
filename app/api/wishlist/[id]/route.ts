@@ -17,7 +17,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
   try {
     const locketId = typeof body.locketId === 'string' ? body.locketId : ''
-    await requireLocketMembership(request, locketId)
+    const { uid } = await requireLocketMembership(request, locketId)
     if (typeof body.status === 'string' && !ALLOWED_STATUS.includes(body.status)) {
       return Response.json({ error: 'invalid_status' }, { status: 400 })
     }
@@ -34,9 +34,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     }
     values.push(params.id)
     values.push(locketId)
+    values.push(uid)
     const { rows } = await query(
       `UPDATE wishlist_items SET ${updates.join(', ')}
-       WHERE id = $${values.length - 1} AND locket_id = $${values.length}
+       WHERE id = $${values.length - 2} AND locket_id = $${values.length - 1}
+         AND NOT (added_by != $${values.length} AND for_uid = $${values.length} AND for_uid IS NOT NULL)
        RETURNING *`,
       values,
     )
@@ -50,12 +52,13 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const locketId = new URL(request.url).searchParams.get('locketId') ?? ''
-    await requireLocketMembership(request, locketId)
+    const { uid } = await requireLocketMembership(request, locketId)
     const { rows } = await query(
       `UPDATE wishlist_items SET status = 'removed'
        WHERE id = $1 AND locket_id = $2
+         AND NOT (added_by != $3 AND for_uid = $3 AND for_uid IS NOT NULL)
        RETURNING id`,
-      [params.id, locketId],
+      [params.id, locketId, uid],
     )
     if (rows.length === 0) {
       return Response.json({ error: 'not_found' }, { status: 404 })
