@@ -626,6 +626,19 @@ export interface DocumentRecord {
   created_at: string;
 }
 
+export interface GroceryItem {
+  id: string;
+  locket_id: string;
+  name: string;
+  qty: string | null;
+  category: string | null;
+  checked: boolean;
+  added_by: string;
+  checked_by: string | null;
+  created_at: string;
+  checked_at: string | null;
+}
+
 export interface WishlistItem {
   id: string;
   locket_id: string;

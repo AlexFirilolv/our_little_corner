@@ -520,6 +520,24 @@ export const migrations = [
       CREATE INDEX IF NOT EXISTS idx_documents_locket_expiry ON documents(locket_id, expiry_date);
     `,
   },
+  {
+    name: '205_create_grocery_items',
+    sql: `
+      CREATE TABLE IF NOT EXISTS grocery_items (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        locket_id UUID NOT NULL REFERENCES lockets(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        qty TEXT,
+        category TEXT,
+        checked BOOLEAN NOT NULL DEFAULT FALSE,
+        added_by VARCHAR(255) NOT NULL,
+        checked_by VARCHAR(255),
+        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+        checked_at TIMESTAMP WITH TIME ZONE
+      );
+      CREATE INDEX IF NOT EXISTS idx_grocery_locket_state ON grocery_items(locket_id, checked, created_at DESC);
+    `,
+  },
 ];
 
 // Check if migration has been run
