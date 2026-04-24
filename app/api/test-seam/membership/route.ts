@@ -1,8 +1,10 @@
 import { NextRequest } from 'next/server'
 import { requireLocketMembership, authErrorResponse } from '@/lib/auth-helpers'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
-  if (process.env.NODE_ENV === 'production') return new Response(null, { status: 404 })
+  if (process.env.ENABLE_TEST_SEAMS !== 'true') return new Response(null, { status: 404 })
   try {
     const locketId = new URL(request.url).searchParams.get('locketId') ?? ''
     const result = await requireLocketMembership(request, locketId)

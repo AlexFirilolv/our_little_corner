@@ -43,6 +43,7 @@ jobs:
       JWT_SECRET: test-jwt-secret
       NEXTAUTH_SECRET: test-nextauth-secret
       INSECURE_COOKIES: 'true'
+      ENABLE_TEST_SEAMS: 'true'
 
     steps:
       - uses: actions/checkout@v4
