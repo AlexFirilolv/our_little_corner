@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
-import { ImmersiveHome } from './dashboard/ImmersiveHome';
+import { TodayGlanceHome } from './dashboard/TodayGlanceHome';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocket } from '@/contexts/LocketContext';
 
@@ -65,9 +65,8 @@ export default function Dashboard() {
         )
     }
 
-    // Render ImmersiveHome with locket and user
     return (
-        <ImmersiveHome
+        <TodayGlanceHome
             locket={currentLocket}
             user={{
                 uid: user?.uid || '',

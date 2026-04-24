@@ -32,7 +32,6 @@ export interface Locket {
   next_countdown_date?: Date;
   cover_photo_url?: string;
   location_origin?: string;
-  pinned_memory_id?: string | null; // Currently pinned memory for Fridge widget
 
   // Calculated fields (not in DB)
   member_count?: number;
@@ -60,7 +59,6 @@ export interface UpdateLocket {
   anniversary_date?: Date | string | null;
   cover_photo_url?: string | null;
   location_origin?: string | null;
-  pinned_memory_id?: string | null;
 }
 
 // Locket Users (many-to-many relationship)

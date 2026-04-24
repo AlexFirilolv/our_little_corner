@@ -233,12 +233,6 @@ export async function updateLocket(id: string, updates: UpdateLocket, firebaseUi
       paramCount++
     }
 
-    if (updates.pinned_memory_id !== undefined) {
-      setParts.push(`pinned_memory_id = $${paramCount}`)
-      values.push(updates.pinned_memory_id)
-      paramCount++
-    }
-
     if (setParts.length === 0) {
       throw new Error('No valid updates provided')
     }

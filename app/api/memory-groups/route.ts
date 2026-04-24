@@ -5,7 +5,6 @@ import {
   updateMemoryGroup,
   deleteMemoryGroup,
   getMemoryGroupById,
-  getLocketById,
   logMemoryActivity,
   updateMediaItem
 } from '@/lib/db'
@@ -39,15 +38,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Exclude pinned fridge note from timeline results unless explicitly requested
-    const excludePinned = searchParams.get('excludePinned') !== 'false'
-    let excludeMemoryId: string | null = null
-    if (excludePinned) {
-      const locket = await getLocketById(locketId)
-      excludeMemoryId = locket?.pinned_memory_id || null
-    }
-
-    const memoryGroups = await getAllMemoryGroups(locketId, includeMedia, excludeMemoryId)
+    const memoryGroups = await getAllMemoryGroups(locketId, includeMedia, null)
 
     // Generate signed URLs for media items (bucket is private)
     if (includeMedia) {

@@ -413,11 +413,6 @@ export const migrations = [
       CREATE POLICY locket_covers_delete_policy ON locket_covers
           FOR DELETE USING (true);
 
-      -- 2. Pinned memory for "Fridge" feature
-      ALTER TABLE lockets
-      ADD COLUMN IF NOT EXISTS pinned_memory_id UUID REFERENCES memory_groups(id) ON DELETE SET NULL;
-
-      COMMENT ON COLUMN lockets.pinned_memory_id IS 'Currently pinned memory shown in the Fridge widget';
     `,
   },
   {
@@ -536,6 +531,12 @@ export const migrations = [
         checked_at TIMESTAMP WITH TIME ZONE
       );
       CREATE INDEX IF NOT EXISTS idx_grocery_locket_state ON grocery_items(locket_id, checked, created_at DESC);
+    `,
+  },
+  {
+    name: '206_drop_fridge_pinned_memory',
+    sql: `
+      ALTER TABLE lockets DROP COLUMN IF EXISTS pinned_memory_id;
     `,
   },
 ];

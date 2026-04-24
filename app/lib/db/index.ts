@@ -9,7 +9,6 @@ export * from './memory-comments'
 export * from './memory-likes'
 export * from './locket-covers'
 export * from './spotlight'
-export * from './pinned-memory'
 
 // graceful shutdown
 import { pool } from './client'
