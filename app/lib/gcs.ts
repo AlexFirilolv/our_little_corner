@@ -76,16 +76,19 @@ export async function generatePresignedUploadUrl(
 /**
  * Generate a presigned URL for downloading/viewing files from GCP Cloud Storage
  */
-export async function generatePresignedDownloadUrl(key: string): Promise<string> {
+export async function generatePresignedDownloadUrl(
+  key: string,
+  ttlMs: number = 60 * 60 * 1000,
+): Promise<string> {
   try {
     const bucket = getBucket()
     const file = bucket.file(key)
 
-    // Generate the presigned URL (expires in 1 hour)
+    // Generate the presigned URL (default 1 hour)
     const [downloadUrl] = await file.getSignedUrl({
       version: 'v4',
       action: 'read',
-      expires: Date.now() + 60 * 60 * 1000, // 1 hour
+      expires: Date.now() + ttlMs,
     })
 
     return downloadUrl

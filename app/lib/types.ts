@@ -568,3 +568,87 @@ export interface SpotlightMemory {
   type: 'on_this_day' | 'random' | 'none';
   years_ago?: number;
 }
+
+export interface Gratitude {
+  id: string;
+  locket_id: string;
+  from_uid: string;
+  to_uid: string;
+  text: string;
+  created_at: string;
+  seen_at: string | null;
+}
+
+export interface DateNightPick {
+  id: string;
+  locket_id: string;
+  idea_id: string;
+  status: 'saved' | 'completed' | 'dismissed';
+  created_by: string;
+  picked_at: string;
+  completed_at: string | null;
+}
+
+export interface Chore {
+  id: string;
+  locket_id: string;
+  name: string;
+  cadence_days: number;
+  assigned_to: string | null;
+  last_done_by: string | null;
+  last_done_at: string | null;
+  next_due_at: string;
+  streak: number;
+  created_at: string;
+}
+
+export type DocumentCategory =
+  | 'id'
+  | 'insurance'
+  | 'medical'
+  | 'vehicle'
+  | 'property'
+  | 'financial'
+  | 'pet'
+  | 'other';
+
+export interface DocumentRecord {
+  id: string;
+  locket_id: string;
+  name: string;
+  category: DocumentCategory;
+  gcs_key: string;
+  file_type: string | null;
+  size_bytes: number | null;
+  expiry_date: string | null;
+  notes: string | null;
+  added_by: string;
+  created_at: string;
+}
+
+export interface GroceryItem {
+  id: string;
+  locket_id: string;
+  name: string;
+  qty: string | null;
+  category: string | null;
+  checked: boolean;
+  added_by: string;
+  checked_by: string | null;
+  created_at: string;
+  checked_at: string | null;
+}
+
+export interface WishlistItem {
+  id: string;
+  locket_id: string;
+  added_by: string;
+  for_uid: string | null;
+  title: string;
+  url: string | null;
+  price_cents: number | null;
+  notes: string | null;
+  status: 'open' | 'reserved' | 'gifted' | 'removed';
+  reserved_by: string | null;
+  created_at: string;
+}

@@ -12,7 +12,7 @@ const createMigrationsTable = `
 `;
 
 // Migration definitions - all use locket naming
-const migrations = [
+export const migrations = [
   {
     name: '100_ensure_extensions',
     sql: `
@@ -432,6 +432,110 @@ const migrations = [
       COMMENT ON COLUMN lockets.anniversary_date IS 'The relationship anniversary date';
       COMMENT ON COLUMN lockets.next_countdown_event_name IS 'Name of the next event to count down to';
       COMMENT ON COLUMN lockets.next_countdown_date IS 'Date/time of the next countdown event';
+    `,
+  },
+  {
+    name: '200_create_gratitudes',
+    sql: `
+      CREATE TABLE IF NOT EXISTS gratitudes (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        locket_id UUID NOT NULL REFERENCES lockets(id) ON DELETE CASCADE,
+        from_uid VARCHAR(255) NOT NULL,
+        to_uid VARCHAR(255) NOT NULL,
+        text TEXT NOT NULL CHECK (length(text) BETWEEN 1 AND 280),
+        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+        seen_at TIMESTAMP WITH TIME ZONE
+      );
+      CREATE INDEX IF NOT EXISTS idx_gratitudes_locket_created ON gratitudes(locket_id, created_at DESC);
+    `,
+  },
+  {
+    name: '201_create_date_night_picks',
+    sql: `
+      CREATE TABLE IF NOT EXISTS date_night_picks (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        locket_id UUID NOT NULL REFERENCES lockets(id) ON DELETE CASCADE,
+        idea_id VARCHAR(100) NOT NULL,
+        status VARCHAR(20) NOT NULL CHECK (status IN ('saved','completed','dismissed')),
+        created_by VARCHAR(255) NOT NULL,
+        picked_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+        completed_at TIMESTAMP WITH TIME ZONE
+      );
+      CREATE INDEX IF NOT EXISTS idx_date_picks_locket_status ON date_night_picks(locket_id, status, picked_at DESC);
+    `,
+  },
+  {
+    name: '202_create_wishlist_items',
+    sql: `
+      CREATE TABLE IF NOT EXISTS wishlist_items (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        locket_id UUID NOT NULL REFERENCES lockets(id) ON DELETE CASCADE,
+        added_by VARCHAR(255) NOT NULL,
+        for_uid VARCHAR(255),
+        title TEXT NOT NULL,
+        url TEXT,
+        price_cents INT CHECK (price_cents IS NULL OR price_cents >= 0),
+        notes TEXT,
+        status VARCHAR(20) NOT NULL CHECK (status IN ('open','reserved','gifted','removed')) DEFAULT 'open',
+        reserved_by VARCHAR(255),
+        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_wishlist_locket_status ON wishlist_items(locket_id, status);
+    `,
+  },
+  {
+    name: '203_create_chores',
+    sql: `
+      CREATE TABLE IF NOT EXISTS chores (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        locket_id UUID NOT NULL REFERENCES lockets(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        cadence_days INT NOT NULL CHECK (cadence_days > 0),
+        assigned_to VARCHAR(255),
+        last_done_by VARCHAR(255),
+        last_done_at TIMESTAMP WITH TIME ZONE,
+        next_due_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        streak INT NOT NULL DEFAULT 0,
+        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_chores_locket_due ON chores(locket_id, next_due_at);
+    `,
+  },
+  {
+    name: '204_create_documents',
+    sql: `
+      CREATE TABLE IF NOT EXISTS documents (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        locket_id UUID NOT NULL REFERENCES lockets(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        category VARCHAR(20) NOT NULL CHECK (category IN ('id','insurance','medical','vehicle','property','financial','pet','other')) DEFAULT 'other',
+        gcs_key TEXT NOT NULL,
+        file_type VARCHAR(100),
+        size_bytes BIGINT,
+        expiry_date DATE,
+        notes TEXT,
+        added_by VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_documents_locket_expiry ON documents(locket_id, expiry_date);
+    `,
+  },
+  {
+    name: '205_create_grocery_items',
+    sql: `
+      CREATE TABLE IF NOT EXISTS grocery_items (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        locket_id UUID NOT NULL REFERENCES lockets(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        qty TEXT,
+        category TEXT,
+        checked BOOLEAN NOT NULL DEFAULT FALSE,
+        added_by VARCHAR(255) NOT NULL,
+        checked_by VARCHAR(255),
+        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+        checked_at TIMESTAMP WITH TIME ZONE
+      );
+      CREATE INDEX IF NOT EXISTS idx_grocery_locket_state ON grocery_items(locket_id, checked, created_at DESC);
     `,
   },
 ];

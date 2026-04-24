@@ -32,6 +32,17 @@ export default async function globalSetup() {
     }
   }
 
+  // Apply in-app runtime migrations defined in app/lib/migrations.ts
+  if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.includes('twofold_test')) {
+    throw new Error(
+      `Refusing to run tests: DATABASE_URL must point at twofold_test database (got: ${process.env.DATABASE_URL ?? 'undefined'})`,
+    )
+  }
+  const { migrations: appMigrations } = await import('../../app/lib/migrations')
+  for (const m of appMigrations) {
+    await pool.query(m.sql)
+  }
+
   return async () => {
     await closeTestPool()
   }
